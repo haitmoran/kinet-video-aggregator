@@ -1,0 +1,38 @@
+import type { Metadata } from "next";
+import "./globals.css";
+
+const basePath = process.env.GITHUB_PAGES === "true" ? "/kinet-video-aggregator" : "";
+
+const themeBootScript = `
+  try {
+    const theme = localStorage.getItem('kinet-theme');
+    document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : 'light';
+    document.documentElement.dataset.tv = localStorage.getItem('kinet-tv') === 'true' ? 'true' : 'false';
+  } catch (_) {
+    document.documentElement.dataset.theme = 'light';
+    document.documentElement.dataset.tv = 'false';
+  }
+`;
+
+export const metadata: Metadata = {
+  title: "Kinet — A calmer way to discover video",
+  description:
+    "A fast, focused video discovery experience bringing exceptional stories from across the web into one place.",
+  icons: { icon: `${basePath}/favicon.svg` },
+  openGraph: {
+    title: "Kinet — Find your next rabbit hole",
+    description: "Exceptional video from across the web, curated into one calm place.",
+    type: "website",
+  },
+};
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <html lang="en" data-theme="light" data-tv="false" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
+}
