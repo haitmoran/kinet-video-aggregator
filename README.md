@@ -2,6 +2,8 @@
 
 A high-performance video aggregation interface built with Next.js, React, and TypeScript.
 
+**Live demo:** https://haitmoran.github.io/kinet-video-aggregator/
+
 ## Features
 
 - 1–6 column responsive catalog with 192 demo entries
