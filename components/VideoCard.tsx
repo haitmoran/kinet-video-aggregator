@@ -170,6 +170,7 @@ export function VideoCard({
   };
 
   const mountPreview = hasIntent && isInViewport && !previewFailed;
+  const platformMark = video.platform === "Internet Archive" ? "IA" : "M";
 
   useEffect(() => {
     const preview = videoRef.current;
@@ -282,14 +283,8 @@ export function VideoCard({
       </div>
 
       <div className="video-card__body">
-        <div className={`platform-mark platform-mark--${video.platform.toLowerCase()}`}>
-          {video.platform === "YouTube" ? (
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor">
-              <path d="M20.2 7.1a2.7 2.7 0 0 0-1.9-1.9C16.7 4.8 12 4.8 12 4.8s-4.7 0-6.3.4a2.7 2.7 0 0 0-1.9 1.9A28 28 0 0 0 3.4 12c0 1.6.1 3.2.4 4.9a2.7 2.7 0 0 0 1.9 1.9c1.6.4 6.3.4 6.3.4s4.7 0 6.3-.4a2.7 2.7 0 0 0 1.9-1.9c.3-1.6.4-3.3.4-4.9s-.1-3.2-.4-4.9ZM10.2 15.1V8.9l5.4 3.1-5.4 3.1Z" />
-            </svg>
-          ) : (
-            <span>{video.platform === "Vimeo" ? "v" : "d"}</span>
-          )}
+        <div className="platform-mark">
+          <span>{platformMark}</span>
         </div>
 
         <div className="video-card__copy">

@@ -9,7 +9,7 @@ A high-performance video aggregation interface built with Next.js, React, and Ty
 - 1–6 column responsive catalog with 192 demo entries
 - Shared `IntersectionObserver` for strict thumbnail lazy-loading
 - Intent-only H.264 MP4 previews on hover, focus, or mobile long-press
-- 24-card pagination so only the current result page is mounted
+- Automatic 24-item incremental loading with no numbered pages
 - Bright and dark themes with no hydration flash
 - Smart TV overscan mode, enlarged controls, and D-pad grid navigation
 - Search, category filters, and sorting
@@ -30,4 +30,4 @@ npm run build
 
 The static site is written to `out/`.
 
-The catalog data is demonstrative. Production ingestion should retrieve provider metadata through official APIs and generate previews only for content the operator is authorized to process.
+The demo catalog links to real open-film pages on Internet Archive and a CC0 MDN media example. Its thumbnails and short previews are extracted from the matching permitted source footage. Production ingestion should still retrieve provider metadata through official APIs and generate previews only for content the operator is authorized to process.

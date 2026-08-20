@@ -18,12 +18,11 @@ type MainTab = "Trending" | "Latest" | "Categories" | "Stars";
 const PAGE_SIZE = 24;
 const mainTabs: MainTab[] = ["Trending", "Latest", "Categories", "Stars"];
 const starCreators = new Set([
-  "Field Notes",
-  "Future Form",
-  "Curious Matter",
-  "Orbital",
-  "Deep Listening",
-  "Contact Sheet",
+  "Blender Studio",
+  "Hjalti Hjálmarsson",
+  "Pablo Vazquez",
+  "Daniel Martínez Lara",
+  "Durian Open Movie",
 ]);
 
 function SearchIcon() {
@@ -61,20 +60,6 @@ function TvIcon() {
   );
 }
 
-function ChevronIcon({ direction }: { direction: "left" | "right" }) {
-  return (
-    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true">
-      <path
-        d={direction === "left" ? "m14.5 6-6 6 6 6" : "m9.5 6 6 6-6 6"}
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function columnCount(): number {
   const width = window.innerWidth;
   if (width < 480) return 1;
@@ -90,6 +75,7 @@ export function VideoExplorer() {
   const gridRef = useRef<HTMLDivElement>(null);
   const catalogRef = useRef<HTMLElement>(null);
   const categoryBarRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const [theme, setTheme] = useState<Theme>("light");
   const [tvMode, setTvMode] = useState(false);
@@ -97,7 +83,7 @@ export function VideoExplorer() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [sort, setSort] = useState("Trending");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [focusedIndex, setFocusedIndex] = useState(0);
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
 
@@ -135,16 +121,32 @@ export function VideoExplorer() {
     return matching;
   }, [activeTab, category, deferredQuery, sort]);
 
-  const pageCount = Math.max(1, Math.ceil(filteredVideos.length / PAGE_SIZE));
-  const pageVideos = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredVideos.slice(start, start + PAGE_SIZE);
-  }, [currentPage, filteredVideos]);
+  const visibleVideos = useMemo(
+    () => filteredVideos.slice(0, visibleCount),
+    [filteredVideos, visibleCount],
+  );
+  const hasMore = visibleCount < filteredVideos.length;
 
   useEffect(() => {
-    setCurrentPage(1);
+    setVisibleCount(PAGE_SIZE);
     setFocusedIndex(0);
   }, [activeTab, category, deferredQuery, sort]);
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || !hasMore) return;
+
+    const loadObserver = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        setVisibleCount((count) => Math.min(count + PAGE_SIZE, filteredVideos.length));
+      },
+      { root: null, rootMargin: "800px 0px", threshold: 0 },
+    );
+
+    loadObserver.observe(sentinel);
+    return () => loadObserver.disconnect();
+  }, [filteredVideos.length, hasMore]);
 
   const changeTheme = () => {
     const nextTheme: Theme = theme === "light" ? "dark" : "light";
@@ -176,14 +178,6 @@ export function VideoExplorer() {
     catalogRef.current?.scrollIntoView({ block: "start" });
   };
 
-  const goToPage = (page: number) => {
-    const nextPage = Math.max(1, Math.min(pageCount, page));
-    if (nextPage === currentPage) return;
-    setCurrentPage(nextPage);
-    setFocusedIndex(0);
-    catalogRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
-  };
-
   const handleGridKeyDown = (
     event: KeyboardEvent<HTMLAnchorElement>,
     index: number,
@@ -194,12 +188,15 @@ export function VideoExplorer() {
 
     const columns = columnCount();
     let target = index;
+    if (event.key === "ArrowDown" && index + columns >= visibleVideos.length && hasMore) {
+      setVisibleCount((count) => Math.min(count + PAGE_SIZE, filteredVideos.length));
+    }
     if (event.key === "ArrowLeft" && index % columns !== 0) target = index - 1;
     if (event.key === "ArrowRight" && index % columns !== columns - 1) target = index + 1;
     if (event.key === "ArrowUp") target = index - columns;
     if (event.key === "ArrowDown") target = index + columns;
 
-    target = Math.max(0, Math.min(pageVideos.length - 1, target));
+    target = Math.max(0, Math.min(visibleVideos.length - 1, target));
     if (target === index) return;
 
     event.preventDefault();
@@ -221,9 +218,6 @@ export function VideoExplorer() {
         : activeTab === "Stars"
           ? "Creator stars"
           : "Trending across the web";
-
-  const pageStart = filteredVideos.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
-  const pageEnd = Math.min(currentPage * PAGE_SIZE, filteredVideos.length);
 
   return (
     <div className="site-frame">
@@ -291,7 +285,9 @@ export function VideoExplorer() {
               <h1 id="catalog-title">{title}</h1>
             </div>
             <div className="catalog__tools">
-              <span className="result-count">{filteredVideos.length} stories</span>
+              <span className="result-count">
+                {visibleVideos.length} of {filteredVideos.length} stories
+              </span>
               <label className="sort-control">
                 <span className="sr-only">Sort videos</span>
                 <select
@@ -329,7 +325,7 @@ export function VideoExplorer() {
             ))}
           </div>
 
-          {pageVideos.length > 0 ? (
+          {visibleVideos.length > 0 ? (
             <>
               <div
                 ref={gridRef}
@@ -339,7 +335,7 @@ export function VideoExplorer() {
                   if (card) setFocusedIndex(Number(card.dataset.videoIndex));
                 }}
               >
-                {pageVideos.map((video, index) => (
+                {visibleVideos.map((video, index) => (
                   <VideoCard
                     key={video.id}
                     video={video}
@@ -351,43 +347,26 @@ export function VideoExplorer() {
                 ))}
               </div>
 
-              <nav className="pagination" aria-label="Video results pages">
-                <button
-                  type="button"
-                  className="pagination__direction"
-                  disabled={currentPage === 1}
-                  onClick={() => goToPage(currentPage - 1)}
-                >
-                  <ChevronIcon direction="left" /> Previous
-                </button>
-
-                <div className="pagination__pages">
-                  {Array.from({ length: pageCount }, (_, index) => index + 1).map((page) => (
+              <div ref={loadMoreRef} className="auto-loader" aria-live="polite">
+                {hasMore ? (
+                  <>
+                    <span className="auto-loader__spinner" aria-hidden="true" />
+                    <span>More stories load automatically as you scroll.</span>
                     <button
-                      key={page}
                       type="button"
-                      className={currentPage === page ? "is-active" : ""}
-                      aria-current={currentPage === page ? "page" : undefined}
-                      aria-label={`Page ${page}`}
-                      onClick={() => goToPage(page)}
+                      onClick={() =>
+                        setVisibleCount((count) =>
+                          Math.min(count + PAGE_SIZE, filteredVideos.length),
+                        )
+                      }
                     >
-                      {page}
+                      Load more
                     </button>
-                  ))}
-                </div>
-
-                <button
-                  type="button"
-                  className="pagination__direction"
-                  disabled={currentPage === pageCount}
-                  onClick={() => goToPage(currentPage + 1)}
-                >
-                  Next <ChevronIcon direction="right" />
-                </button>
-                <p className="pagination__summary">
-                  Showing {pageStart}–{pageEnd} of {filteredVideos.length}
-                </p>
-              </nav>
+                  </>
+                ) : (
+                  <span>You’ve reached all {filteredVideos.length} stories.</span>
+                )}
+              </div>
             </>
           ) : (
             <div className="empty-state">
