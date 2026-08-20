@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     "A fast, focused video discovery experience bringing exceptional stories from across the web into one place.",
   icons: { icon: `${basePath}/favicon.svg` },
   openGraph: {
-    title: "Kinet — Find your next rabbit hole",
+    title: "Kinet — Video discovery across the web",
     description: "Exceptional video from across the web, curated into one calm place.",
     type: "website",
   },

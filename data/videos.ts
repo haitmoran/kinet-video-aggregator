@@ -27,7 +27,7 @@ const seeds: VideoSeed[] = [
     views: "1.8M views",
     age: "2 days ago",
     thumbnail: "thumbnails/01.webp",
-    preview: "previews/01.webm",
+    preview: "previews/01.mp4",
     accent: "#ff5c35",
   },
   {
@@ -39,7 +39,7 @@ const seeds: VideoSeed[] = [
     views: "864K views",
     age: "6 hours ago",
     thumbnail: "thumbnails/02.webp",
-    preview: "previews/02.webm",
+    preview: "previews/02.mp4",
     accent: "#306cff",
   },
   {
@@ -51,7 +51,7 @@ const seeds: VideoSeed[] = [
     views: "3.4M views",
     age: "1 week ago",
     thumbnail: "thumbnails/03.webp",
-    preview: "previews/03.webm",
+    preview: "previews/03.mp4",
     accent: "#00a6a6",
   },
   {
@@ -63,7 +63,7 @@ const seeds: VideoSeed[] = [
     views: "492K views",
     age: "3 days ago",
     thumbnail: "thumbnails/04.webp",
-    preview: "previews/04.webm",
+    preview: "previews/04.mp4",
     accent: "#2f7d5c",
   },
   {
@@ -75,7 +75,7 @@ const seeds: VideoSeed[] = [
     views: "721K views",
     age: "4 days ago",
     thumbnail: "thumbnails/05.webp",
-    preview: "previews/05.webm",
+    preview: "previews/05.mp4",
     accent: "#bd7b46",
   },
   {
@@ -87,7 +87,7 @@ const seeds: VideoSeed[] = [
     views: "2.1M views",
     age: "8 days ago",
     thumbnail: "thumbnails/06.webp",
-    preview: "previews/06.webm",
+    preview: "previews/06.mp4",
     accent: "#7f5540",
   },
   {
@@ -99,7 +99,7 @@ const seeds: VideoSeed[] = [
     views: "978K views",
     age: "11 hours ago",
     thumbnail: "thumbnails/07.webp",
-    preview: "previews/07.webm",
+    preview: "previews/07.mp4",
     accent: "#6d5dfc",
   },
   {
@@ -111,7 +111,7 @@ const seeds: VideoSeed[] = [
     views: "5.7M views",
     age: "2 weeks ago",
     thumbnail: "thumbnails/08.webp",
-    preview: "previews/08.webm",
+    preview: "previews/08.mp4",
     accent: "#6558d3",
   },
   {
@@ -123,7 +123,7 @@ const seeds: VideoSeed[] = [
     views: "1.2M views",
     age: "5 days ago",
     thumbnail: "thumbnails/09.webp",
-    preview: "previews/09.webm",
+    preview: "previews/09.mp4",
     accent: "#df7b35",
   },
   {
@@ -135,7 +135,7 @@ const seeds: VideoSeed[] = [
     views: "340K views",
     age: "1 day ago",
     thumbnail: "thumbnails/10.webp",
-    preview: "previews/10.webm",
+    preview: "previews/10.mp4",
     accent: "#e45576",
   },
   {
@@ -147,7 +147,7 @@ const seeds: VideoSeed[] = [
     views: "2.8M views",
     age: "3 weeks ago",
     thumbnail: "thumbnails/11.webp",
-    preview: "previews/11.webm",
+    preview: "previews/11.mp4",
     accent: "#dc594b",
   },
   {
@@ -159,7 +159,7 @@ const seeds: VideoSeed[] = [
     views: "608K views",
     age: "4 days ago",
     thumbnail: "thumbnails/12.webp",
-    preview: "previews/12.webm",
+    preview: "previews/12.mp4",
     accent: "#e43d8d",
   },
   {
@@ -171,7 +171,7 @@ const seeds: VideoSeed[] = [
     views: "4.3M views",
     age: "6 days ago",
     thumbnail: "thumbnails/13.webp",
-    preview: "previews/13.webm",
+    preview: "previews/13.mp4",
     accent: "#934de4",
   },
   {
@@ -183,7 +183,7 @@ const seeds: VideoSeed[] = [
     views: "772K views",
     age: "9 days ago",
     thumbnail: "thumbnails/14.webp",
-    preview: "previews/14.webm",
+    preview: "previews/14.mp4",
     accent: "#187aab",
   },
   {
@@ -195,7 +195,7 @@ const seeds: VideoSeed[] = [
     views: "954K views",
     age: "2 days ago",
     thumbnail: "thumbnails/15.webp",
-    preview: "previews/15.webm",
+    preview: "previews/15.mp4",
     accent: "#c2774d",
   },
   {
@@ -207,7 +207,7 @@ const seeds: VideoSeed[] = [
     views: "1.6M views",
     age: "12 hours ago",
     thumbnail: "thumbnails/16.webp",
-    preview: "previews/16.webm",
+    preview: "previews/16.mp4",
     accent: "#4d7cfe",
   },
 ];

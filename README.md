@@ -8,7 +8,8 @@ A high-performance video aggregation interface built with Next.js, React, and Ty
 
 - 1–6 column responsive catalog with 192 demo entries
 - Shared `IntersectionObserver` for strict thumbnail lazy-loading
-- Intent-only WebM previews on hover, focus, or mobile long-press
+- Intent-only H.264 MP4 previews on hover, focus, or mobile long-press
+- 24-card pagination so only the current result page is mounted
 - Bright and dark themes with no hydration flash
 - Smart TV overscan mode, enlarged controls, and D-pad grid navigation
 - Search, category filters, and sorting

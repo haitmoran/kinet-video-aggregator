@@ -5,6 +5,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEventHandler,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
@@ -58,10 +59,7 @@ function previewIsAllowed(): boolean {
     navigator as Navigator & { connection?: { saveData?: boolean } }
   ).connection;
 
-  return (
-    !connection?.saveData &&
-    !window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
+  return !connection?.saveData;
 }
 
 type VideoCardProps = {
@@ -80,6 +78,7 @@ export function VideoCard({
   onKeyDown,
 }: VideoCardProps) {
   const cardRef = useRef<HTMLAnchorElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const intents = useRef(new Set<Intent>());
   const longPressTimer = useRef<number | null>(null);
   const lastTouchAt = useRef(0);
@@ -135,19 +134,10 @@ export function VideoCard({
 
   useEffect(() => clearLongPress, [clearLongPress]);
 
-  const handlePointerEnter = (
-    event: ReactPointerEvent<HTMLAnchorElement>,
-  ) => {
-    if (event.pointerType === "mouse" || event.pointerType === "pen") {
-      addIntent("hover");
-    }
-  };
-
   const handlePointerLeave = (
     event: ReactPointerEvent<HTMLAnchorElement>,
   ) => {
     clearLongPress();
-    removeIntent("hover");
     if (event.pointerType === "touch") removeIntent("press");
   };
 
@@ -181,6 +171,20 @@ export function VideoCard({
 
   const mountPreview = hasIntent && isInViewport && !previewFailed;
 
+  useEffect(() => {
+    const preview = videoRef.current;
+    if (!mountPreview || !preview) return;
+
+    preview.muted = true;
+    preview.currentTime = 0;
+    void preview.play().catch(() => setPreviewReady(false));
+
+    return () => {
+      preview.pause();
+      preview.currentTime = 0;
+    };
+  }, [mountPreview, video.preview]);
+
   return (
     <a
       ref={cardRef}
@@ -191,10 +195,13 @@ export function VideoCard({
       tabIndex={tabIndex}
       data-video-index={index}
       data-preview={previewReady ? "ready" : "idle"}
-      style={{ "--card-accent": video.accent } as React.CSSProperties}
+      style={{ "--card-accent": video.accent } as CSSProperties}
       aria-label={`${video.title}. ${video.creator} on ${video.platform}. ${video.views}. Duration ${video.duration}.`}
       onKeyDown={onKeyDown}
-      onPointerEnter={handlePointerEnter}
+      onMouseEnter={() => {
+        if (Date.now() - lastTouchAt.current > 750) addIntent("hover");
+      }}
+      onMouseLeave={() => removeIntent("hover")}
       onPointerLeave={handlePointerLeave}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
@@ -231,7 +238,10 @@ export function VideoCard({
 
         {mountPreview && (
           <video
+            key={video.preview}
+            ref={videoRef}
             className={`video-card__preview ${previewReady ? "is-ready" : ""}`}
+            src={video.preview}
             muted
             loop
             playsInline
@@ -239,7 +249,7 @@ export function VideoCard({
             preload="auto"
             aria-hidden="true"
             tabIndex={-1}
-            onCanPlay={(event) => {
+            onLoadedData={(event) => {
               void event.currentTarget.play().catch(() => {
                 setPreviewReady(false);
               });
@@ -251,9 +261,7 @@ export function VideoCard({
               setPreviewReady(false);
               setPreviewFailed(true);
             }}
-          >
-            <source src={video.preview} type="video/webm" />
-          </video>
+          />
         )}
 
         <span className="video-card__shade" aria-hidden="true" />

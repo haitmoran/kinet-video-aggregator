@@ -13,6 +13,18 @@ import { VideoCard } from "@/components/VideoCard";
 import { categories, videos } from "@/data/videos";
 
 type Theme = "light" | "dark";
+type MainTab = "Trending" | "Latest" | "Categories" | "Stars";
+
+const PAGE_SIZE = 24;
+const mainTabs: MainTab[] = ["Trending", "Latest", "Categories", "Stars"];
+const starCreators = new Set([
+  "Field Notes",
+  "Future Form",
+  "Curious Matter",
+  "Orbital",
+  "Deep Listening",
+  "Contact Sheet",
+]);
 
 function SearchIcon() {
   return (
@@ -49,10 +61,16 @@ function TvIcon() {
   );
 }
 
-function ArrowIcon() {
+function ChevronIcon({ direction }: { direction: "left" | "right" }) {
   return (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
-      <path d="M5 12h14M14 7l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true">
+      <path
+        d={direction === "left" ? "m14.5 6-6 6 6 6" : "m9.5 6 6 6-6 6"}
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -70,19 +88,21 @@ function columnCount(): number {
 export function VideoExplorer() {
   const searchRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const catalogRef = useRef<HTMLElement>(null);
+  const categoryBarRef = useRef<HTMLDivElement>(null);
 
   const [theme, setTheme] = useState<Theme>("light");
   const [tvMode, setTvMode] = useState(false);
+  const [activeTab, setActiveTab] = useState<MainTab>("Trending");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [sort, setSort] = useState("Trending");
+  const [currentPage, setCurrentPage] = useState(1);
   const [focusedIndex, setFocusedIndex] = useState(0);
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
 
   useEffect(() => {
-    const savedTheme = document.documentElement.dataset.theme;
-    setTheme(savedTheme === "dark" ? "dark" : "light");
-
+    setTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
     const savedTvMode = window.localStorage.getItem("kinet-tv") === "true";
     setTvMode(savedTvMode);
     document.documentElement.dataset.tv = String(savedTvMode);
@@ -103,21 +123,28 @@ export function VideoExplorer() {
   const filteredVideos = useMemo(() => {
     const matching = videos.filter((video) => {
       const matchesCategory = category === "All" || video.category === category;
+      const matchesStars = activeTab !== "Stars" || starCreators.has(video.creator);
       const haystack = `${video.title} ${video.creator} ${video.platform} ${video.category}`.toLowerCase();
-      return matchesCategory && (!deferredQuery || haystack.includes(deferredQuery));
+      return matchesCategory && matchesStars && (!deferredQuery || haystack.includes(deferredQuery));
     });
 
     if (sort === "Newest") return [...matching].reverse();
     if (sort === "Shortest") {
       return [...matching].sort((a, b) => a.duration.localeCompare(b.duration));
     }
-
     return matching;
-  }, [category, deferredQuery, sort]);
+  }, [activeTab, category, deferredQuery, sort]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredVideos.length / PAGE_SIZE));
+  const pageVideos = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredVideos.slice(start, start + PAGE_SIZE);
+  }, [currentPage, filteredVideos]);
 
   useEffect(() => {
+    setCurrentPage(1);
     setFocusedIndex(0);
-  }, [category, deferredQuery, sort]);
+  }, [activeTab, category, deferredQuery, sort]);
 
   const changeTheme = () => {
     const nextTheme: Theme = theme === "light" ? "dark" : "light";
@@ -134,12 +161,27 @@ export function VideoExplorer() {
 
     if (nextValue) {
       window.setTimeout(() => {
-        const firstCard = gridRef.current?.querySelector<HTMLAnchorElement>(
-          '[data-video-index="0"]',
-        );
-        firstCard?.focus();
+        gridRef.current?.querySelector<HTMLAnchorElement>('[data-video-index="0"]')?.focus();
       }, 0);
     }
+  };
+
+  const selectTab = (tab: MainTab) => {
+    setActiveTab(tab);
+    if (tab === "Trending") setSort("Trending");
+    if (tab === "Latest") setSort("Newest");
+    if (tab === "Categories") {
+      window.setTimeout(() => categoryBarRef.current?.scrollIntoView({ block: "center" }), 0);
+    }
+    catalogRef.current?.scrollIntoView({ block: "start" });
+  };
+
+  const goToPage = (page: number) => {
+    const nextPage = Math.max(1, Math.min(pageCount, page));
+    if (nextPage === currentPage) return;
+    setCurrentPage(nextPage);
+    setFocusedIndex(0);
+    catalogRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   };
 
   const handleGridKeyDown = (
@@ -152,18 +194,16 @@ export function VideoExplorer() {
 
     const columns = columnCount();
     let target = index;
-
     if (event.key === "ArrowLeft" && index % columns !== 0) target = index - 1;
     if (event.key === "ArrowRight" && index % columns !== columns - 1) target = index + 1;
     if (event.key === "ArrowUp") target = index - columns;
     if (event.key === "ArrowDown") target = index + columns;
 
-    target = Math.max(0, Math.min(filteredVideos.length - 1, target));
+    target = Math.max(0, Math.min(pageVideos.length - 1, target));
     if (target === index) return;
 
     event.preventDefault();
     setFocusedIndex(target);
-
     const nextCard = gridRef.current?.querySelector<HTMLAnchorElement>(
       `[data-video-index="${target}"]`,
     );
@@ -171,24 +211,40 @@ export function VideoExplorer() {
     nextCard?.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
   };
 
-  const handleSearch = (event: ChangeEvent<HTMLInputElement>) => {
-    setQuery(event.target.value);
-  };
+  const title =
+    activeTab === "Latest"
+      ? "The latest stories"
+      : activeTab === "Categories"
+        ? category === "All"
+          ? "Browse every category"
+          : category
+        : activeTab === "Stars"
+          ? "Creator stars"
+          : "Trending across the web";
+
+  const pageStart = filteredVideos.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const pageEnd = Math.min(currentPage * PAGE_SIZE, filteredVideos.length);
 
   return (
     <div className="site-frame">
       <header className="topbar">
-        <a className="brand" href="#top" aria-label="Kinet home">
-          <span className="brand__mark" aria-hidden="true">
-            <span />
-          </span>
+        <a className="brand" href="#catalog" aria-label="Kinet home">
+          <span className="brand__mark" aria-hidden="true"><span /></span>
           <span className="brand__word">kinet</span>
         </a>
 
-        <nav className="primary-nav" aria-label="Primary navigation">
-          <a className="is-active" href="#discover">Discover</a>
-          <a href="#latest">Latest</a>
-          <a href="#collections">Collections</a>
+        <nav className="primary-nav" aria-label="Browse videos">
+          {mainTabs.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              className={activeTab === tab ? "is-active" : ""}
+              aria-pressed={activeTab === tab}
+              onClick={() => selectTab(tab)}
+            >
+              {tab}
+            </button>
+          ))}
         </nav>
 
         <label className="nav-search" aria-label="Search videos">
@@ -197,7 +253,7 @@ export function VideoExplorer() {
             ref={searchRef}
             type="search"
             value={query}
-            onChange={handleSearch}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => setQuery(event.target.value)}
             placeholder="Search stories, creators, topics"
           />
           <kbd>/</kbd>
@@ -214,7 +270,6 @@ export function VideoExplorer() {
           >
             <TvIcon />
           </button>
-
           <button
             className="icon-button"
             type="button"
@@ -224,53 +279,28 @@ export function VideoExplorer() {
           >
             {theme === "light" ? <MoonIcon /> : <SunIcon />}
           </button>
-
-          <button className="avatar" type="button" aria-label="Open profile">
-            MH
-          </button>
+          <button className="avatar" type="button" aria-label="Open profile">MH</button>
         </div>
       </header>
 
       <main id="top">
-        <section className="hero" id="discover" aria-labelledby="hero-title">
-          <div className="hero__eyebrow">
-            <span className="live-dot" />
-            One beautiful feed. Every platform.
-          </div>
-          <h1 id="hero-title">
-            Find your next
-            <br />
-            <span>rabbit hole.</span>
-          </h1>
-          <p>
-            Exceptional films, explainers, and documentaries from across the web—curated into one calm place.
-          </p>
-          <a className="hero__cta" href="#latest">
-            Start exploring <ArrowIcon />
-          </a>
-
-          <div className="hero__note" aria-label="Preview instructions">
-            <span className="hero__note-icon">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
-                <path d="m8 5 11 7-11 7V5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-              </svg>
-            </span>
-            <span><strong>Smart previews</strong> Hover, focus, or long-press any story.</span>
-          </div>
-        </section>
-
-        <section className="catalog" id="latest" aria-labelledby="catalog-title">
+        <section ref={catalogRef} className="catalog" id="catalog" aria-labelledby="catalog-title">
           <div className="catalog__header">
             <div>
-              <p className="section-kicker">Curated today</p>
-              <h2 id="catalog-title">Trending across the web</h2>
+              <p className="section-kicker">{activeTab}</p>
+              <h1 id="catalog-title">{title}</h1>
             </div>
-
             <div className="catalog__tools">
               <span className="result-count">{filteredVideos.length} stories</span>
               <label className="sort-control">
                 <span className="sr-only">Sort videos</span>
-                <select value={sort} onChange={(event) => setSort(event.target.value)}>
+                <select
+                  value={sort}
+                  onChange={(event) => {
+                    setSort(event.target.value);
+                    if (event.target.value === "Newest") setActiveTab("Latest");
+                  }}
+                >
                   <option>Trending</option>
                   <option>Newest</option>
                   <option>Shortest</option>
@@ -282,70 +312,100 @@ export function VideoExplorer() {
             </div>
           </div>
 
-          <div className="category-bar" role="toolbar" aria-label="Video categories">
+          <div ref={categoryBarRef} className="category-bar" role="toolbar" aria-label="Video categories">
             {categories.map((item) => (
               <button
                 key={item}
                 type="button"
                 className={category === item ? "is-active" : ""}
                 aria-pressed={category === item}
-                onClick={() => setCategory(item)}
+                onClick={() => {
+                  setCategory(item);
+                  setActiveTab("Categories");
+                }}
               >
                 {item}
               </button>
             ))}
           </div>
 
-          {filteredVideos.length > 0 ? (
-            <div
-              ref={gridRef}
-              className="video-grid"
-              onFocusCapture={(event) => {
-                const card = (event.target as HTMLElement).closest<HTMLElement>("[data-video-index]");
-                if (card) setFocusedIndex(Number(card.dataset.videoIndex));
-              }}
-            >
-              {filteredVideos.map((video, index) => (
-                <VideoCard
-                  key={video.id}
-                  video={video}
-                  index={index}
-                  priority={index < 6}
-                  tabIndex={tvMode ? (focusedIndex === index ? 0 : -1) : 0}
-                  onKeyDown={(event) => handleGridKeyDown(event, index)}
-                />
-              ))}
-            </div>
+          {pageVideos.length > 0 ? (
+            <>
+              <div
+                ref={gridRef}
+                className="video-grid"
+                onFocusCapture={(event) => {
+                  const card = (event.target as HTMLElement).closest<HTMLElement>("[data-video-index]");
+                  if (card) setFocusedIndex(Number(card.dataset.videoIndex));
+                }}
+              >
+                {pageVideos.map((video, index) => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    index={index}
+                    priority={index < 6}
+                    tabIndex={tvMode ? (focusedIndex === index ? 0 : -1) : 0}
+                    onKeyDown={(event) => handleGridKeyDown(event, index)}
+                  />
+                ))}
+              </div>
+
+              <nav className="pagination" aria-label="Video results pages">
+                <button
+                  type="button"
+                  className="pagination__direction"
+                  disabled={currentPage === 1}
+                  onClick={() => goToPage(currentPage - 1)}
+                >
+                  <ChevronIcon direction="left" /> Previous
+                </button>
+
+                <div className="pagination__pages">
+                  {Array.from({ length: pageCount }, (_, index) => index + 1).map((page) => (
+                    <button
+                      key={page}
+                      type="button"
+                      className={currentPage === page ? "is-active" : ""}
+                      aria-current={currentPage === page ? "page" : undefined}
+                      aria-label={`Page ${page}`}
+                      onClick={() => goToPage(page)}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  className="pagination__direction"
+                  disabled={currentPage === pageCount}
+                  onClick={() => goToPage(currentPage + 1)}
+                >
+                  Next <ChevronIcon direction="right" />
+                </button>
+                <p className="pagination__summary">
+                  Showing {pageStart}–{pageEnd} of {filteredVideos.length}
+                </p>
+              </nav>
+            </>
           ) : (
             <div className="empty-state">
               <span className="empty-state__icon"><SearchIcon /></span>
-              <h3>No stories found</h3>
+              <h2>No stories found</h2>
               <p>Try a broader search or choose another category.</p>
               <button
                 type="button"
                 onClick={() => {
                   setQuery("");
                   setCategory("All");
+                  setActiveTab("Trending");
                 }}
               >
                 Clear filters
               </button>
             </div>
           )}
-        </section>
-
-        <section className="collections" id="collections" aria-labelledby="collections-title">
-          <div className="collection-copy">
-            <p className="section-kicker">Watch with intention</p>
-            <h2 id="collections-title">Less scrolling.<br />More discovering.</h2>
-            <p>Follow topics you care about and turn a noisy internet into a considered watchlist.</p>
-          </div>
-
-          <div className="collection-stack" aria-hidden="true">
-            <div className="mini-card mini-card--one"><span>01</span><strong>Slow travel</strong><small>24 stories</small></div>
-            <div className="mini-card mini-card--two"><span>02</span><strong>Designing tomorrow</strong><small>18 stories</small></div>
-            <div className="mini-card mini-card--three"><span>03</span><strong>The curious mind</strong><small>31 stories</small></div>
-          </div>
         </section>
       </main>
 
@@ -356,9 +416,9 @@ export function VideoExplorer() {
         </div>
         <p>A fast, focused prototype for video discovery.</p>
         <div className="footer__links">
-          <a href="#top">About</a>
-          <a href="#top">Sources</a>
-          <a href="#top">Privacy</a>
+          <a href="#catalog">About</a>
+          <a href="#catalog">Sources</a>
+          <a href="#catalog">Privacy</a>
         </div>
       </footer>
     </div>
