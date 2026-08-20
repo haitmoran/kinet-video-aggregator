@@ -3,10 +3,13 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { StarPortrait } from "@/components/StarPortrait";
+import { VideoCard } from "@/components/VideoCard";
 import { getStarSlugsForVideo, type StarProfile } from "@/data/stars";
 import { videos } from "@/data/videos";
-import { trackAnalyticsEvent } from "@/lib/analyticsClient";
-import type { StarCardPreferences } from "@/lib/displayPreferences";
+import type {
+  StarCardPreferences,
+  VideoMetadataPreferences,
+} from "@/lib/displayPreferences";
 import styles from "./StarDirectory.module.css";
 
 export type StarDirectoryEntry = {
@@ -20,6 +23,16 @@ const compactNumber = new Intl.NumberFormat("en", {
   notation: "compact",
   maximumFractionDigits: 1,
 });
+
+const FULL_VIDEO_METADATA: VideoMetadataPreferences = {
+  stars: true,
+  title: true,
+  creator: true,
+  source: true,
+  likes: true,
+  year: true,
+  duration: true,
+};
 
 const remoteKeys: Record<number, string> = {
   13: "Enter",
@@ -42,6 +55,8 @@ type StarDirectoryProps = {
   details: StarCardPreferences;
   lovedStarSlugs: ReadonlySet<string>;
   onToggleStarLove: (starSlug: string) => boolean;
+  likedVideoIds: ReadonlySet<string>;
+  onToggleVideoLike: (videoId: string) => void;
   onExitDown?: () => void;
   initialStarSlug?: string | null;
 };
@@ -53,6 +68,8 @@ export function StarDirectory({
   details,
   lovedStarSlugs,
   onToggleStarLove,
+  likedVideoIds,
+  onToggleVideoLike,
   onExitDown,
   initialStarSlug,
 }: StarDirectoryProps) {
@@ -283,26 +300,19 @@ export function StarDirectory({
                 <h3>Videos featuring {activeEntry.profile.firstName}</h3>
                 <span>{activeEntry.appearances}</span>
               </div>
-              <div className={styles.drawerVideoGrid}>
-                {displayedVideos.map((video) => (
-                  <a
+              <div className={styles.drawerVideoGrid} role="list">
+                {displayedVideos.map((video, index) => (
+                  <VideoCard
                     key={video.id}
-                    className={styles.drawerVideo}
-                    href={video.href}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow"
-                    onClick={() => trackAnalyticsEvent({
-                      type: "video_open",
-                      itemId: video.id,
-                      itemLabel: video.title,
-                    })}
-                  >
-                    <img src={video.thumbnail} alt="" width="160" height="90" loading="lazy" decoding="async" />
-                    <span>
-                      <strong>{video.title}</strong>
-                      <small>{video.platform} · {video.duration}</small>
-                    </span>
-                  </a>
+                    video={video}
+                    index={index}
+                    liked={likedVideoIds.has(video.id)}
+                    onToggleLike={() => onToggleVideoLike(video.id)}
+                    lovedStarSlugs={lovedStarSlugs}
+                    onToggleStarLove={onToggleStarLove}
+                    metadata={FULL_VIDEO_METADATA}
+                    priority={index < 4}
+                  />
                 ))}
               </div>
               {!showAllVideos && relatedVideos.length > displayedVideos.length && (

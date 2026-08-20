@@ -270,7 +270,7 @@
   text-transform: uppercase;
 }
 
-.drawer h2 {
+.drawerIdentity h2 {
   margin: 0;
   color: var(--text-strong);
   font-size: clamp(2rem, 4vw, 3.2rem);
@@ -391,7 +391,9 @@
 
 .drawerVideoGrid {
   display: grid;
-  gap: 7px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
 }
 
 .drawerVideo {

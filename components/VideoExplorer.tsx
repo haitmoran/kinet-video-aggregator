@@ -964,6 +964,8 @@ export function VideoExplorer() {
                 details={displayPreferences.starMetadata}
                 lovedStarSlugs={lovedStarSlugs}
                 onToggleStarLove={toggleStarLove}
+                likedVideoIds={likedVideoIds}
+                onToggleVideoLike={toggleLike}
                 initialStarSlug={requestedStarSlug}
               />
             ) : (
@@ -1022,6 +1024,8 @@ export function VideoExplorer() {
                         details={displayPreferences.starMetadata}
                         lovedStarSlugs={lovedStarSlugs}
                         onToggleStarLove={toggleStarLove}
+                        likedVideoIds={likedVideoIds}
+                        onToggleVideoLike={toggleLike}
                         onExitDown={() => {
                           const firstVideo = gridRef.current?.querySelector<HTMLElement>(
                             '[data-video-index="0"][data-card-action="open"]',
