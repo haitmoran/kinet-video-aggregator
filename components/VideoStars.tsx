@@ -39,7 +39,7 @@ type PopoverPosition = {
 
 function positionPreviewTray(
   trigger: HTMLButtonElement,
-  measuredHeight = 260,
+  measuredHeight = 190,
 ): PopoverPosition {
   const card = trigger.closest<HTMLElement>(".video-card");
   const cardBounds = card?.getBoundingClientRect() ?? trigger.getBoundingClientRect();
@@ -49,7 +49,9 @@ function positionPreviewTray(
   const topbarBottom = document.querySelector<HTMLElement>(".topbar")
     ?.getBoundingClientRect().bottom ?? 0;
   const safeTop = Math.max(gutter, topbarBottom + 10);
-  const idealWidth = tvMode ? 520 : 380;
+  const idealWidth = tvMode
+    ? Math.min(520, Math.max(400, cardBounds.width * 0.9))
+    : Math.min(380, Math.max(300, cardBounds.width * 0.9));
   const minimumSideWidth = tvMode ? 340 : 280;
   const cardOverlap = tvMode ? 62 : 48;
   const maximumHeight = Math.max(1, window.innerHeight - safeTop - gutter);
@@ -152,7 +154,7 @@ export function VideoStars({
     const trigger = triggerRefs.current[activeIndexRef.current];
     if (trigger) {
       setPopoverPosition(
-        positionPreviewTray(trigger, dialogRef.current?.offsetHeight ?? 260),
+        positionPreviewTray(trigger, dialogRef.current?.offsetHeight ?? 190),
       );
     }
   }, []);
@@ -186,8 +188,8 @@ export function VideoStars({
       if (["ArrowUp", "ArrowRight", "ArrowDown", "ArrowLeft"].includes(event.key)) {
         const focusable = [
           loveButtonRef.current,
-          profileLinkRef.current,
           closeButtonRef.current,
+          profileLinkRef.current,
         ].filter(
           (element): element is HTMLAnchorElement | HTMLButtonElement => Boolean(element),
         );
@@ -202,8 +204,8 @@ export function VideoStars({
       if (event.key === "Tab") {
         const focusable = [
           loveButtonRef.current,
-          profileLinkRef.current,
           closeButtonRef.current,
+          profileLinkRef.current,
         ].filter(
           (element): element is HTMLAnchorElement | HTMLButtonElement => Boolean(element),
         );
@@ -297,44 +299,47 @@ export function VideoStars({
               "--popover-max-height": `${popoverPosition.maxHeight}px`,
             } as CSSProperties}
           >
-            <div className={styles.actions}>
-              <button
-                ref={loveButtonRef}
-                className={`video-card__like ${styles.popupLove} ${lovedStarSlugs.has(activeStar.slug) ? "is-liked" : ""}`}
-                type="button"
-                aria-pressed={lovedStarSlugs.has(activeStar.slug)}
-                aria-label={lovedStarSlugs.has(activeStar.slug)
-                  ? `Remove ${activeStar.name} from loved stars`
-                  : `Love ${activeStar.name}`}
-                title={lovedStarSlugs.has(activeStar.slug) ? "Remove from loved stars" : "Love this star"}
-                data-focus-label={lovedStarSlugs.has(activeStar.slug) ? "Remove love" : "Love star"}
-                onClick={() => {
-                  const changed = onToggleStarLove(activeStar.slug);
-                  if (!changed) closeProfile(false);
-                }}
-              >
-                <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
-                  <path d="M12 20.3 4.2 12.8A4.8 4.8 0 0 1 11 6l1 1 1-1a4.8 4.8 0 0 1 6.8 6.8L12 20.3Z" />
-                </svg>
-              </button>
+            <div className={styles.toolbar}>
+              <span className={styles.prototype}>Featured star</span>
+              <div className={styles.actions}>
+                <button
+                  ref={loveButtonRef}
+                  className={`video-card__like ${styles.popupLove} ${lovedStarSlugs.has(activeStar.slug) ? "is-liked" : ""}`}
+                  type="button"
+                  aria-pressed={lovedStarSlugs.has(activeStar.slug)}
+                  aria-label={lovedStarSlugs.has(activeStar.slug)
+                    ? `Remove ${activeStar.name} from loved stars`
+                    : `Love ${activeStar.name}`}
+                  title={lovedStarSlugs.has(activeStar.slug) ? "Remove from loved stars" : "Love this star"}
+                  data-focus-label={lovedStarSlugs.has(activeStar.slug) ? "Remove love" : "Love star"}
+                  onClick={() => {
+                    const changed = onToggleStarLove(activeStar.slug);
+                    if (!changed) closeProfile(false);
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+                    <path d="M12 20.3 4.2 12.8A4.8 4.8 0 0 1 11 6l1 1 1-1a4.8 4.8 0 0 1 6.8 6.8L12 20.3Z" />
+                  </svg>
+                </button>
 
-              <button
-                ref={closeButtonRef}
-                className={styles.close}
-                type="button"
-                aria-label="Close star preview"
-                onClick={() => closeProfile()}
-                onKeyDown={(event) => {
-                  if (["OK", "Select", "Accept"].includes(event.key)) {
-                    event.preventDefault();
-                    event.currentTarget.click();
-                  }
-                }}
-              >
-                <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
-                  <path d="m6.5 6.5 11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                </svg>
-              </button>
+                <button
+                  ref={closeButtonRef}
+                  className={styles.close}
+                  type="button"
+                  aria-label="Close star preview"
+                  onClick={() => closeProfile()}
+                  onKeyDown={(event) => {
+                    if (["OK", "Select", "Accept"].includes(event.key)) {
+                      event.preventDefault();
+                      event.currentTarget.click();
+                    }
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+                    <path d="m6.5 6.5 11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <a
@@ -351,7 +356,6 @@ export function VideoStars({
             >
               <StarPortrait star={activeStar} className={styles.dialogPortrait} decorative={false} />
               <div className={styles.dialogCopy}>
-                <span className={styles.prototype}>Featured star</span>
                 <h2 id={`${dialogId}-title`}>{activeStar.name}</h2>
                 <p className={styles.role}>{activeStar.role}</p>
                 <p id={`${dialogId}-description`} className={styles.bio}>{activeStar.shortBio}</p>

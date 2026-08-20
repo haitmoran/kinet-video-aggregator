@@ -111,12 +111,18 @@
   transform-origin: bottom center;
 }
 
-.actions {
-  position: absolute;
-  z-index: 5;
-  top: 14px;
-  right: 14px;
+.toolbar {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 38px;
+  padding: 3px 5px 2px 9px;
+}
+
+.actions {
+  display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 7px;
 }
@@ -158,12 +164,12 @@
 
 .profileLink {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  gap: 15px;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 12px;
   align-items: center;
   border-radius: 14px;
   color: inherit;
-  padding: 9px;
+  padding: 6px 9px 9px;
   text-decoration: none;
 }
 
@@ -177,7 +183,7 @@
 
 .dialogCopy {
   min-width: 0;
-  padding: 52px 8px 10px 0;
+  padding: 3px 0 5px;
 }
 
 .prototype {
@@ -194,7 +200,7 @@
 
 .dialogCopy h2 {
   overflow: hidden;
-  margin: 8px 0 3px;
+  margin: 0 0 3px;
   color: var(--text-strong);
   font-size: clamp(1.2rem, 1.7vw, 1.65rem);
   letter-spacing: -0.04em;
@@ -273,16 +279,16 @@
   }
 
   .profileLink {
-    grid-template-columns: 82px minmax(0, 1fr);
-    gap: 12px;
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 10px;
   }
 
   .dialogPortrait {
-    width: 82px;
+    width: 76px;
   }
 
   .dialogCopy {
-    padding: 52px 4px 8px 0;
+    padding: 2px 0 4px;
   }
 }
 

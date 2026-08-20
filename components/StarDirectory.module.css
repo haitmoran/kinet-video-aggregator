@@ -156,9 +156,9 @@
 .drawer {
   position: absolute;
   top: 12px;
-  right: 12px;
+  left: 12px;
   bottom: 12px;
-  width: min(430px, calc(100vw - 24px));
+  width: min(66.666vw, calc(100vw - 24px));
   overflow-y: auto;
   border: 1px solid color-mix(in srgb, var(--line) 68%, rgb(255 255 255 / 45%));
   border-radius: 22px;
@@ -251,6 +251,14 @@
   aspect-ratio: 16 / 9;
   object-fit: cover;
   border-radius: 15px;
+}
+
+.drawerOverview {
+  min-width: 0;
+}
+
+.drawerIdentity {
+  min-width: 0;
 }
 
 .drawerEyebrow {
@@ -450,7 +458,7 @@
 }
 
 @keyframes drawerIn {
-  from { opacity: 0; transform: translateX(24px) scale(.985); }
+  from { opacity: 0; transform: translateX(-24px) scale(.985); }
   to { opacity: 1; transform: translateX(0) scale(1); }
 }
 
@@ -471,6 +479,25 @@
   .grid {
     grid-template-columns: repeat(var(--preferred-star-columns, 5), minmax(0, 1fr));
     gap: 11px;
+  }
+
+  .drawerOverview {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1.1fr);
+    gap: clamp(20px, 2.5vw, 38px);
+    align-items: start;
+  }
+
+  .drawerIdentity {
+    padding-top: 56px;
+  }
+
+  .drawerEyebrow {
+    margin-top: 0;
+  }
+
+  .drawerVideoGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -503,9 +530,9 @@
 
 :global(html[data-tv="true"]) .drawer {
   top: 5vh;
-  right: 5vw;
+  left: 5vw;
   bottom: 5vh;
-  width: min(600px, 42vw);
+  width: min(66.666vw, calc(100vw - 10vw));
   padding: 22px;
 }
 
@@ -527,7 +554,7 @@
 @media (max-width: 36rem) {
   .drawer {
     top: 8px;
-    right: 8px;
+    left: 8px;
     bottom: 8px;
     width: calc(100vw - 16px);
     border-radius: 18px;

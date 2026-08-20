@@ -250,19 +250,23 @@ export function StarDirectory({
                 <path d="m6.5 6.5 11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
               </svg>
             </button>
-            <StarPortrait star={activeEntry.profile} className={styles.drawerPortrait} decorative={false} />
-            <p className={styles.drawerEyebrow}>Featured star</p>
-            <h2 id="star-drawer-title">{activeEntry.profile.name}</h2>
-            <p className={styles.drawerRole}>{activeEntry.profile.role}</p>
-            <p className={styles.drawerLocation}>{activeEntry.profile.location}</p>
-            <p className={styles.drawerBio}>{activeEntry.profile.bio}</p>
-            <div className={styles.drawerStats}>
-              <span><strong>{activeEntry.appearances}</strong> stories</span>
-              <span><strong>{compactNumber.format(activeEntry.totalLikes)}</strong> likes</span>
-              <span><strong>{activeEntry.newestYear}</strong> latest</span>
-            </div>
-            <div className={styles.drawerSpecialties}>
-              {activeEntry.profile.specialties.map((specialty) => <span key={specialty}>{specialty}</span>)}
+            <div className={styles.drawerOverview}>
+              <StarPortrait star={activeEntry.profile} className={styles.drawerPortrait} decorative={false} />
+              <div className={styles.drawerIdentity}>
+                <p className={styles.drawerEyebrow}>Featured star</p>
+                <h2 id="star-drawer-title">{activeEntry.profile.name}</h2>
+                <p className={styles.drawerRole}>{activeEntry.profile.role}</p>
+                <p className={styles.drawerLocation}>{activeEntry.profile.location}</p>
+                <p className={styles.drawerBio}>{activeEntry.profile.bio}</p>
+                <div className={styles.drawerStats}>
+                  <span><strong>{activeEntry.appearances}</strong> stories</span>
+                  <span><strong>{compactNumber.format(activeEntry.totalLikes)}</strong> likes</span>
+                  <span><strong>{activeEntry.newestYear}</strong> latest</span>
+                </div>
+                <div className={styles.drawerSpecialties}>
+                  {activeEntry.profile.specialties.map((specialty) => <span key={specialty}>{specialty}</span>)}
+                </div>
+              </div>
             </div>
             <section className={styles.drawerCredits} aria-label="Featured credits">
               <h3>Featured credits</h3>
