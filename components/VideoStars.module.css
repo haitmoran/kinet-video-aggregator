@@ -1,7 +1,7 @@
 .root {
   position: absolute;
   z-index: 12;
-  top: 9px;
+  top: 57px;
   left: 9px;
   display: flex;
   align-items: center;
@@ -58,29 +58,28 @@
   white-space: nowrap;
 }
 
-.backdrop {
+.popoverLayer {
   position: fixed;
   z-index: 120;
   inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 22px;
-  background: rgb(4 8 15 / 58%);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  animation: backdropIn 150ms ease both;
+  pointer-events: none;
 }
 
 .dialog {
-  position: relative;
-  width: min(520px, 100%);
+  position: absolute;
+  top: var(--popover-top);
+  left: var(--popover-left);
+  width: min(380px, calc(100vw - 24px));
+  max-height: min(520px, calc(100vh - 24px));
+  overflow-y: auto;
   border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
-  border-radius: 24px;
+  border-radius: 18px;
   background: var(--surface-raised);
   color: var(--text);
-  padding: 10px;
-  box-shadow: 0 28px 90px rgb(0 0 0 / 34%);
+  padding: 8px;
+  box-shadow: 0 20px 55px rgb(0 0 0 / 28%);
   animation: dialogIn 180ms cubic-bezier(.2, .8, .2, 1) both;
+  pointer-events: auto;
 }
 
 .close {
@@ -111,8 +110,8 @@
 
 .profileLink {
   display: grid;
-  grid-template-columns: minmax(150px, 42%) minmax(0, 1fr);
-  gap: clamp(18px, 4vw, 30px);
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 18px;
   align-items: center;
   border-radius: 17px;
   color: inherit;
@@ -130,7 +129,7 @@
 
 .dialogCopy {
   min-width: 0;
-  padding: 34px 18px 24px 0;
+  padding: 31px 12px 16px 0;
 }
 
 .prototype {
@@ -161,10 +160,14 @@
 }
 
 .bio {
-  margin: 16px 0 18px;
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 12px 0 15px;
   color: var(--text);
-  font-size: 0.9rem;
+  font-size: 0.78rem;
   line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .cta {
@@ -184,13 +187,8 @@
   transition: transform 140ms ease;
 }
 
-@keyframes backdropIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
 @keyframes dialogIn {
-  from { opacity: 0; transform: translateY(10px) scale(.97); }
+  from { opacity: 0; transform: translateY(-6px) scale(.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
@@ -214,22 +212,20 @@
   }
 
   .dialog {
-    width: min(390px, 100%);
+    width: min(360px, calc(100vw - 24px));
   }
 
   .profileLink {
-    grid-template-columns: 1fr;
-    gap: 0;
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 14px;
   }
 
   .dialogPortrait {
-    max-height: 230px;
-    object-fit: cover;
-    object-position: center 25%;
+    width: 92px;
   }
 
   .dialogCopy {
-    padding: 18px 12px 14px;
+    padding: 28px 8px 12px 0;
   }
 }
 
@@ -237,6 +233,10 @@
   height: 46px;
   gap: 8px;
   padding: 4px 12px 4px 4px;
+}
+
+:global(html[data-tv="true"]) .root {
+  top: 78px;
 }
 
 :global(html[data-tv="true"]) .indicatorPortrait {
@@ -250,7 +250,7 @@
 }
 
 :global(html[data-tv="true"]) .dialog {
-  width: min(720px, 70vw);
+  width: min(520px, calc(100vw - 10vw));
 }
 
 :global(html[data-tv="true"]) .dialogCopy h2 {
@@ -264,7 +264,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .backdrop,
   .dialog {
     animation: none;
   }

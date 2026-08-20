@@ -86,12 +86,12 @@ function RankedList({ title, items, emptyText }: { title: string; items: RankedI
 export function AnalyticsDashboard() {
   const [ready, setReady] = useState(false);
   const [token, setToken] = useState("");
-  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [days, setDays] = useState(30);
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const username = "moran";
 
   useEffect(() => {
     setToken(window.sessionStorage.getItem(OWNER_SESSION_KEY) ?? "");
@@ -215,8 +215,8 @@ export function AnalyticsDashboard() {
               <input
                 type="text"
                 value={username}
-                onChange={(event) => setUsername(event.target.value)}
                 autoComplete="username"
+                readOnly
                 required
                 autoFocus
               />

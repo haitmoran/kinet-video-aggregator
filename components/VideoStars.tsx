@@ -7,6 +7,7 @@ import {
   useId,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEventHandler,
   type MouseEvent,
 } from "react";
@@ -39,8 +40,34 @@ export function VideoStars({
   const triggerRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const profileLinkRef = useRef<HTMLAnchorElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
   const activeIndexRef = useRef(0);
   const [activeStar, setActiveStar] = useState<StarProfile | null>(null);
+  const [popoverPosition, setPopoverPosition] = useState({ top: 12, left: 12 });
+
+  const updatePopoverPosition = useCallback(() => {
+    const trigger = triggerRefs.current[activeIndexRef.current];
+    if (!trigger) return;
+
+    const anchor = trigger.getBoundingClientRect();
+    const dialogWidth = Math.min(380, window.innerWidth - 24);
+    const dialogHeight = dialogRef.current?.offsetHeight ?? 290;
+    const gutter = 12;
+    let left = anchor.left;
+    let top = anchor.bottom + 10;
+
+    if (left + dialogWidth > window.innerWidth - gutter) {
+      left = window.innerWidth - dialogWidth - gutter;
+    }
+    if (top + dialogHeight > window.innerHeight - gutter) {
+      top = anchor.top - dialogHeight - 10;
+    }
+
+    setPopoverPosition({
+      left: Math.max(gutter, left),
+      top: Math.max(gutter, top),
+    });
+  }, []);
 
   const closeProfile = useCallback((restoreFocus = true) => {
     setActiveStar(null);
@@ -52,8 +79,7 @@ export function VideoStars({
   useEffect(() => {
     if (!activeStar) return;
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    updatePopoverPosition();
     window.requestAnimationFrame(() => profileLinkRef.current?.focus());
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -98,17 +124,31 @@ export function VideoStars({
       }
     };
 
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleKeyDown);
+    const handleOutsidePointer = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (dialogRef.current?.contains(target)) return;
+      if (triggerRefs.current.some((trigger) => trigger?.contains(target))) return;
+      closeProfile(false);
     };
-  }, [activeStar, closeProfile]);
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("pointerdown", handleOutsidePointer);
+    window.addEventListener("resize", updatePopoverPosition);
+    window.addEventListener("scroll", updatePopoverPosition, true);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("pointerdown", handleOutsidePointer);
+      window.removeEventListener("resize", updatePopoverPosition);
+      window.removeEventListener("scroll", updatePopoverPosition, true);
+    };
+  }, [activeStar, closeProfile, updatePopoverPosition]);
 
   const openProfile = (star: StarProfile, starIndex: number, event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
     activeIndexRef.current = starIndex;
+    const anchor = event.currentTarget.getBoundingClientRect();
+    setPopoverPosition({ top: anchor.bottom + 10, left: Math.max(12, anchor.left) });
     setActiveStar(star);
   };
 
@@ -142,19 +182,18 @@ export function VideoStars({
       </div>
 
       {activeStar && typeof document !== "undefined" && createPortal(
-        <div
-          className={styles.backdrop}
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) closeProfile();
-          }}
-        >
+        <div className={styles.popoverLayer}>
           <section
+            ref={dialogRef}
             id={dialogId}
             className={styles.dialog}
             role="dialog"
-            aria-modal="true"
             aria-labelledby={`${dialogId}-title`}
             aria-describedby={`${dialogId}-description`}
+            style={{
+              "--popover-top": `${popoverPosition.top}px`,
+              "--popover-left": `${popoverPosition.left}px`,
+            } as CSSProperties}
           >
             <button
               ref={closeButtonRef}

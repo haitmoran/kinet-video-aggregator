@@ -11,8 +11,10 @@ import {
   type KeyboardEvent,
 } from "react";
 import { AuthDialog, type AuthMode } from "@/components/AuthDialog";
+import { StarDirectory, type StarDirectoryEntry } from "@/components/StarDirectory";
 import { VideoCard, type VideoCardAction } from "@/components/VideoCard";
 import { categories, moods, videos } from "@/data/videos";
+import { getStarSlugsForVideo, starProfiles } from "@/data/stars";
 import {
   getLikedVideoIds,
   getSession,
@@ -22,7 +24,7 @@ import {
 } from "@/lib/localAuth";
 
 type Theme = "light" | "dark";
-type MainTab = "Trending" | "Latest" | "Categories" | "Stars";
+type MainTab = "Trending" | "Latest" | "Categories" | "Stars" | "Liked";
 type RankMode = "Featured" | "Newest" | "Most liked" | "Shortest" | "Longest";
 type DurationFilter = "Any duration" | "Under 3 min" | "3–6 min" | "6–12 min" | "12+ min";
 type SourceFilter = "All sources" | "Internet Archive" | "MDN";
@@ -154,6 +156,11 @@ export function VideoExplorer() {
     const session = getSession();
     setCurrentUser(session);
     if (session) setLikedVideoIds(getLikedVideoIds(session.normalizedUsername));
+
+    if (new URLSearchParams(window.location.search).get("tab") === "stars") {
+      setActiveTab("Stars");
+      setSort("Featured");
+    }
   }, []);
 
   useEffect(() => {
@@ -215,8 +222,8 @@ export function VideoExplorer() {
     return () => window.removeEventListener("keydown", shortcut);
   }, []);
 
-  const filteredVideos = useMemo(() => {
-    const matching = videos.filter((video) => {
+  const videosMatchingFilters = useMemo(
+    () => videos.filter((video) => {
       const matchesCategories =
         selectedCategories.length === 0 ||
         selectedCategories.some((selectedCategory) => video.tags.includes(selectedCategory));
@@ -233,18 +240,23 @@ export function VideoExplorer() {
         (eraFilter === "Before 2010" && video.publishedYear < 2010) ||
         (eraFilter === "2010s" && video.publishedYear >= 2010 && video.publishedYear < 2020) ||
         (eraFilter === "2020s" && video.publishedYear >= 2020);
-      const matchesStars =
-        activeTab !== "Stars" || Boolean(currentUser && likedVideoIds.has(video.id));
-      const haystack = `${video.title} ${video.creator} ${video.platform} ${video.category} ${video.tags.join(" ")} ${video.mood}`.toLowerCase();
       return (
         matchesCategories &&
         matchesMood &&
         matchesDuration &&
         matchesSource &&
-        matchesEra &&
-        matchesStars &&
-        (!deferredQuery || haystack.includes(deferredQuery))
+        matchesEra
       );
+    }),
+    [durationFilter, eraFilter, moodFilter, selectedCategories, sourceFilter],
+  );
+
+  const filteredVideos = useMemo(() => {
+    const matching = videosMatchingFilters.filter((video) => {
+      const matchesLiked =
+        activeTab !== "Liked" || Boolean(currentUser && likedVideoIds.has(video.id));
+      const haystack = `${video.title} ${video.creator} ${video.platform} ${video.category} ${video.tags.join(" ")} ${video.mood}`.toLowerCase();
+      return matchesLiked && (!deferredQuery || haystack.includes(deferredQuery));
     });
 
     if (sort === "Newest") return [...matching].sort((a, b) => b.publishedYear - a.publishedYear || b.likeCount - a.likeCount);
@@ -252,7 +264,39 @@ export function VideoExplorer() {
     if (sort === "Shortest") return [...matching].sort((a, b) => a.durationSeconds - b.durationSeconds);
     if (sort === "Longest") return [...matching].sort((a, b) => b.durationSeconds - a.durationSeconds);
     return matching;
-  }, [activeTab, currentUser, deferredQuery, durationFilter, eraFilter, likedVideoIds, moodFilter, selectedCategories, sort, sourceFilter]);
+  }, [activeTab, currentUser, deferredQuery, likedVideoIds, sort, videosMatchingFilters]);
+
+  const filteredStars = useMemo(() => {
+    const entries = starProfiles.flatMap<StarDirectoryEntry>((profile) => {
+      const relatedVideos = videosMatchingFilters.filter((video) =>
+        getStarSlugsForVideo(video.id).includes(profile.slug),
+      );
+      const profileText = `${profile.name} ${profile.role} ${profile.location} ${profile.specialties.join(" ")}`.toLowerCase();
+      const matchesSearch =
+        !deferredQuery ||
+        profileText.includes(deferredQuery) ||
+        relatedVideos.some((video) =>
+          `${video.title} ${video.creator} ${video.tags.join(" ")}`.toLowerCase().includes(deferredQuery),
+        );
+      if (!relatedVideos.length || !matchesSearch) return [];
+
+      return [{
+        profile,
+        appearances: relatedVideos.length,
+        totalLikes: relatedVideos.reduce((total, video) => total + video.likeCount, 0),
+        newestYear: Math.max(...relatedVideos.map((video) => video.publishedYear)),
+        averageDuration:
+          relatedVideos.reduce((total, video) => total + video.durationSeconds, 0) /
+          relatedVideos.length,
+      }];
+    });
+
+    if (sort === "Newest") return entries.sort((a, b) => b.newestYear - a.newestYear);
+    if (sort === "Most liked") return entries.sort((a, b) => b.totalLikes - a.totalLikes);
+    if (sort === "Shortest") return entries.sort((a, b) => a.averageDuration - b.averageDuration);
+    if (sort === "Longest") return entries.sort((a, b) => b.averageDuration - a.averageDuration);
+    return entries;
+  }, [deferredQuery, sort, videosMatchingFilters]);
 
   const visibleVideos = useMemo(
     () => filteredVideos.slice(0, visibleCount),
@@ -410,6 +454,16 @@ export function VideoExplorer() {
     setAccountMenuOpen(false);
   };
 
+  const openLikedVideos = () => {
+    setActiveTab("Liked");
+    resetFilters();
+    setSort("Featured");
+    setAccountMenuOpen(false);
+    catalogRef.current?.scrollIntoView({ block: "start" });
+  };
+
+  const isManager = currentUser?.normalizedUsername === "moran";
+
   const handleGridKeyDown = (
     event: KeyboardEvent<HTMLElement>,
     index: number,
@@ -510,6 +564,7 @@ export function VideoExplorer() {
               {tab}
             </button>
           ))}
+          {isManager && <a className="manager-tab" href="analytics/">Analytics</a>}
         </nav>
 
         <label className="nav-search" aria-label="Search videos">
@@ -569,12 +624,9 @@ export function VideoExplorer() {
                   <button
                     type="button"
                     role="menuitem"
-                    onClick={() => {
-                      selectTab("Stars");
-                      setAccountMenuOpen(false);
-                    }}
+                    onClick={openLikedVideos}
                   >
-                    Open Stars
+                    Liked videos
                   </button>
                   <button type="button" role="menuitem" onClick={() => openAuth("change")}>Change password</button>
                   <button className="is-danger" type="button" role="menuitem" onClick={handleSignOut}>Sign out</button>
@@ -591,7 +643,12 @@ export function VideoExplorer() {
       </header>
 
       <main id="top">
-        <section ref={catalogRef} className="catalog" id="catalog" aria-label="Video catalog">
+        <section
+          ref={catalogRef}
+          className="catalog"
+          id="catalog"
+          aria-label={activeTab === "Stars" ? "Star directory" : "Video catalog"}
+        >
           <div className="catalog__header">
             <button
               ref={filterButtonRef}
@@ -605,15 +662,18 @@ export function VideoExplorer() {
               <span>Filters</span>
               {activeFilterCount > 0 && <span className="filter-trigger__count">{activeFilterCount}</span>}
             </button>
+            {activeTab === "Liked" && <span className="catalog-view-label">Liked videos</span>}
             <div className="catalog__tools">
               <span className="result-count">
-                {visibleVideos.length} of {filteredVideos.length} stories
+                {activeTab === "Stars"
+                  ? `${filteredStars.length} stars`
+                  : `${visibleVideos.length} of ${filteredVideos.length} stories`}
               </span>
               <label className="sort-control">
                 <span className="sort-control__label">Rank by</span>
                 <select
                   value={sort}
-                  aria-label="Rank videos by"
+                  aria-label={activeTab === "Stars" ? "Rank stars by" : "Rank videos by"}
                   onChange={(event) => setSort(event.target.value as RankMode)}
                 >
                   {rankModes.map((rankMode) => <option key={rankMode}>{rankMode}</option>)}
@@ -625,7 +685,18 @@ export function VideoExplorer() {
             </div>
           </div>
 
-          {activeTab === "Stars" && !currentUser ? (
+          {activeTab === "Stars" ? (
+            filteredStars.length > 0 ? (
+              <StarDirectory entries={filteredStars} tvMode={tvMode} />
+            ) : (
+              <div className="empty-state">
+                <span className="empty-state__icon"><SearchIcon /></span>
+                <h2>No stars found</h2>
+                <p>Try a broader search or reset the video filters.</p>
+                <button type="button" onClick={() => { setQuery(""); resetFilters(); }}>Clear filters</button>
+              </div>
+            )
+          ) : activeTab === "Liked" && !currentUser ? (
             <div className="auth-gate">
               <span className="auth-gate__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
@@ -720,9 +791,9 @@ export function VideoExplorer() {
           ) : (
             <div className="empty-state">
               <span className="empty-state__icon"><SearchIcon /></span>
-              <h2>{activeTab === "Stars" ? "No liked videos yet" : "No stories found"}</h2>
+              <h2>{activeTab === "Liked" ? "No liked videos yet" : "No stories found"}</h2>
               <p>
-                {activeTab === "Stars"
+                {activeTab === "Liked"
                   ? "Tap the heart on any video to save it here."
                   : "Try a broader search or choose another category."}
               </p>
@@ -735,7 +806,7 @@ export function VideoExplorer() {
                   setSort("Featured");
                 }}
               >
-                {activeTab === "Stars" ? "Explore videos" : "Clear filters"}
+                {activeTab === "Liked" ? "Explore videos" : "Clear filters"}
               </button>
             </div>
           )}
@@ -893,7 +964,10 @@ export function VideoExplorer() {
                 Reset all
               </button>
               <button type="button" className="filter-apply" onClick={() => closeFilters()}>
-                Show {filteredVideos.length} {filteredVideos.length === 1 ? "video" : "videos"}
+                Show {activeTab === "Stars" ? filteredStars.length : filteredVideos.length}{" "}
+                {activeTab === "Stars"
+                  ? filteredStars.length === 1 ? "star" : "stars"
+                  : filteredVideos.length === 1 ? "video" : "videos"}
               </button>
             </footer>
           </aside>

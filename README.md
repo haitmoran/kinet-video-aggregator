@@ -17,6 +17,7 @@ A high-performance video aggregation interface built with Next.js, React, and Ty
 - Browser-local username/password registration with optional recovery email
 - Per-user likes surfaced in the Stars tab
 - Two fictional featured-star profiles per video, with quick previews and static profile pages
+- A filterable and sortable Stars directory; profile pages link back to that tab
 - Dense, edge-to-edge cards with high-contrast overlaid metadata
 - Cookie-free visit tracking with an integrated, owner-only analytics dashboard
 - Fully static production export
@@ -43,6 +44,8 @@ Authentication in this static demo is device-local. Passwords are stored as salt
 ## Private visitor analytics
 
 The `/analytics/` section is backed by a free Cloudflare Worker and D1 database. The public site receives only the Worker URL; owner credentials, signing secrets, and analytics rows remain server-side.
+
+The Analytics navigation tab is shown only to the signed-in local manager username `moran`. The Worker independently verifies the same owner username plus its server-side password before returning any statistics.
 
 1. Authenticate Wrangler and create the database:
 

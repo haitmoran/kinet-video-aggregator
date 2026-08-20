@@ -1,0 +1,159 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(9px, 1vw, 15px);
+}
+
+.card {
+  position: relative;
+  min-height: clamp(290px, 34vw, 520px);
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--control);
+  color: #fff;
+  text-decoration: none;
+  isolation: isolate;
+}
+
+.portrait,
+.shade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.portrait {
+  object-fit: cover;
+  transition: transform 500ms cubic-bezier(.2, .7, .2, 1);
+}
+
+.shade {
+  z-index: 1;
+  background: linear-gradient(to top, rgb(0 0 0 / 92%) 0%, rgb(0 0 0 / 38%) 48%, transparent 76%);
+  pointer-events: none;
+}
+
+.prototype {
+  position: absolute;
+  z-index: 2;
+  top: 13px;
+  right: 13px;
+  border: 1px solid rgb(255 255 255 / 30%);
+  border-radius: 999px;
+  background: rgb(10 14 22 / 45%);
+  padding: 6px 9px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  backdrop-filter: blur(9px);
+}
+
+.copy {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: clamp(20px, 3vw, 36px);
+}
+
+.copy > p {
+  margin: 0 0 7px;
+  color: rgb(255 255 255 / 76%);
+  font-size: clamp(0.72rem, 0.9vw, 0.9rem);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.copy h2 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(2rem, 4.4vw, 4.8rem);
+  font-weight: 830;
+  letter-spacing: -0.065em;
+  line-height: 0.92;
+  text-shadow: 0 3px 18px rgb(0 0 0 / 45%);
+}
+
+.copy > span {
+  display: block;
+  margin-top: 9px;
+  color: rgb(255 255 255 / 78%);
+  font-size: 0.76rem;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 18px;
+}
+
+.meta span {
+  border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: 999px;
+  background: rgb(0 0 0 / 28%);
+  padding: 6px 9px;
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 720;
+  backdrop-filter: blur(8px);
+}
+
+.card:hover .portrait,
+.card:focus-visible .portrait {
+  transform: scale(1.035);
+}
+
+.card:focus-visible {
+  outline: 4px solid var(--focus);
+  outline-offset: 4px;
+}
+
+@media (min-width: 64rem) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .card {
+    min-height: clamp(320px, 28vw, 500px);
+  }
+
+  .copy h2 {
+    font-size: clamp(2rem, 3vw, 3.7rem);
+  }
+}
+
+@media (max-width: 36rem) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
+    min-height: 420px;
+  }
+}
+
+:global(html[data-tv="true"]) .grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(14px, 1vw, 22px);
+}
+
+:global(html[data-tv="true"]) .card {
+  min-height: min(52vh, 560px);
+}
+
+:global(html[data-tv="true"]) .card:focus-visible {
+  outline: 6px solid #fbbf24;
+  outline-offset: 8px;
+  box-shadow: 0 0 28px rgb(251 191 36 / 52%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portrait {
+    transition: none;
+  }
+}

@@ -42,15 +42,15 @@ export default async function StarPage({ params }: StarPageProps) {
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <Link className={styles.brand} href="/" aria-label="Kinet home">
+        <Link className={styles.brand} href="/?tab=stars#catalog" aria-label="Kinet stars">
           <span className={styles.brandMark} aria-hidden="true"><span /></span>
           <span>kinet</span>
         </Link>
-        <Link className={styles.back} href="/">
+        <Link className={styles.back} href="/?tab=stars#catalog">
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
             <path d="M19 12H6M11 7l-5 5 5 5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          Back to discovery
+          Back to Stars
         </Link>
       </header>
 
@@ -138,7 +138,7 @@ export default async function StarPage({ params }: StarPageProps) {
 
       <footer className={styles.footer}>
         <p>Demo profile — replace this fictional biography and artwork with verified talent data before launch.</p>
-        <Link href="/">Explore all videos</Link>
+        <Link href="/?tab=stars#catalog">Browse all stars</Link>
       </footer>
     </main>
   );
