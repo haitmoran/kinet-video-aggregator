@@ -108,6 +108,24 @@ export function AuthDialog({
         const normalizedUsername = username.trim().toLowerCase();
         const user = normalizedUsername === MANAGER_USERNAME
           ? await (async () => {
+              const analyticsReconnect =
+                new URLSearchParams(window.location.search).get("managerLogin") === "1";
+
+              if (!analyticsReconnect) {
+                try {
+                  const localManager = await signInAccount(username, password);
+                  try {
+                    const ownerToken = await authenticateAnalyticsOwner(username, password);
+                    saveAnalyticsOwnerSession(ownerToken);
+                  } catch {
+                    clearAnalyticsOwnerSession();
+                  }
+                  return localManager;
+                } catch {
+                  // A secure manager login can provision or replace the old local-only account.
+                }
+              }
+
               const ownerToken = await authenticateAnalyticsOwner(username, password);
               const manager = await establishManagerSession(username, password);
               saveAnalyticsOwnerSession(ownerToken);
