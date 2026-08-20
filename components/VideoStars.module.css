@@ -63,29 +63,31 @@
 
 .dialog {
   position: relative;
+  left: var(--panel-offset, 0px);
   z-index: 6;
-  width: 100%;
-  max-height: var(--dialog-expanded-height, 240px);
+  width: min(380px, calc(100vw - 24px));
+  max-height: var(--dialog-expanded-height, 360px);
   overflow: hidden;
   margin-top: 8px;
   border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
-  border-radius: 12px;
+  border-top: 3px solid var(--accent);
+  border-radius: 17px;
   background: var(--surface-raised);
   color: var(--text);
-  padding: 6px;
-  box-shadow: 0 12px 30px rgb(17 24 39 / 16%);
-  animation: dialogIn 220ms cubic-bezier(.2, .8, .2, 1) both;
+  padding: 8px;
+  box-shadow: 0 18px 46px rgb(17 24 39 / 22%);
+  animation: dialogIn 240ms cubic-bezier(.16, .8, .24, 1) both;
   transform-origin: top center;
 }
 
 .close {
   position: absolute;
   z-index: 2;
-  top: 8px;
-  right: 8px;
+  top: 14px;
+  right: 14px;
   display: grid;
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   place-items: center;
   border: 1px solid rgb(255 255 255 / 45%);
   border-radius: 50%;
@@ -106,12 +108,12 @@
 
 .profileLink {
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 15px;
   align-items: center;
-  border-radius: 9px;
+  border-radius: 14px;
   color: inherit;
-  padding: 6px;
+  padding: 9px;
   text-decoration: none;
 }
 
@@ -119,13 +121,13 @@
   display: block;
   width: 100%;
   height: auto;
-  border-radius: 10px;
-  box-shadow: 0 7px 18px rgb(17 24 39 / 16%);
+  border-radius: 15px;
+  box-shadow: 0 10px 26px rgb(17 24 39 / 18%);
 }
 
 .dialogCopy {
   min-width: 0;
-  padding: 1px 30px 1px 0;
+  padding: 19px 34px 10px 0;
 }
 
 .prototype {
@@ -133,8 +135,8 @@
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent);
-  padding: 3px 6px;
-  font-size: 0.5rem;
+  padding: 4px 7px;
+  font-size: 0.57rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -142,10 +144,10 @@
 
 .dialogCopy h2 {
   overflow: hidden;
-  margin: 5px 0 2px;
+  margin: 8px 0 3px;
   color: var(--text-strong);
-  font-size: clamp(0.92rem, 1.05vw, 1.12rem);
-  letter-spacing: -0.025em;
+  font-size: clamp(1.2rem, 1.7vw, 1.65rem);
+  letter-spacing: -0.04em;
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -155,7 +157,7 @@
   margin: 0;
   color: var(--muted);
   overflow: hidden;
-  font-size: 0.62rem;
+  font-size: 0.74rem;
   font-weight: 690;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -164,10 +166,10 @@
 .bio {
   display: -webkit-box;
   overflow: hidden;
-  margin: 5px 0 6px;
+  margin: 8px 0 9px;
   color: var(--text);
-  font-size: 0.6rem;
-  line-height: 1.35;
+  font-size: 0.7rem;
+  line-height: 1.45;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
@@ -175,9 +177,9 @@
 .cta {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   color: var(--text-strong);
-  font-size: 0.63rem;
+  font-size: 0.74rem;
   font-weight: 790;
 }
 
@@ -197,7 +199,7 @@
     transform: translateY(-7px) scale(.985);
   }
   to {
-    max-height: var(--dialog-expanded-height, 240px);
+    max-height: var(--dialog-expanded-height, 360px);
     margin-top: 8px;
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -225,16 +227,16 @@
   }
 
   .profileLink {
-    grid-template-columns: 54px minmax(0, 1fr);
-    gap: 9px;
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: 12px;
   }
 
   .dialogPortrait {
-    width: 54px;
+    width: 82px;
   }
 
   .dialogCopy {
-    padding-right: 28px;
+    padding: 14px 30px 8px 0;
   }
 }
 
@@ -260,13 +262,14 @@
 }
 
 :global(html[data-tv="true"]) .dialog {
-  --dialog-expanded-height: 340px;
+  --dialog-expanded-height: 430px;
+  width: min(520px, calc(100vw - 10vw));
   padding: 10px;
 }
 
 :global(html[data-tv="true"]) .profileLink {
-  grid-template-columns: 84px minmax(0, 1fr);
-  gap: 15px;
+  grid-template-columns: 118px minmax(0, 1fr);
+  gap: 20px;
 }
 
 :global(html[data-tv="true"]) .dialogCopy h2 {

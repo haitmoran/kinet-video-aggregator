@@ -7,6 +7,7 @@ import {
   useId,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEventHandler,
   type MouseEvent,
 } from "react";
@@ -23,6 +24,23 @@ type VideoStarsProps = {
   tabIndexes?: readonly [number, number];
   onStarKeyDown?: KeyboardEventHandler<HTMLButtonElement>;
 };
+
+function panelOffsetForTrigger(trigger: HTMLButtonElement): number {
+  const card = trigger.closest<HTMLElement>(".video-card");
+  if (!card) return 0;
+
+  const cardBounds = card.getBoundingClientRect();
+  const triggerBounds = trigger.getBoundingClientRect();
+  const gutter = 12;
+  const tvMode = document.documentElement.dataset.tv === "true";
+  const panelWidth = Math.min(tvMode ? 520 : 380, window.innerWidth - gutter * 2);
+  const idealViewportLeft = triggerBounds.left + triggerBounds.width / 2 - panelWidth / 2;
+  const viewportLeft = Math.max(
+    gutter,
+    Math.min(idealViewportLeft, window.innerWidth - panelWidth - gutter),
+  );
+  return viewportLeft - cardBounds.left;
+}
 
 export function VideoStars({
   videoId,
@@ -41,6 +59,12 @@ export function VideoStars({
   const dialogRef = useRef<HTMLElement>(null);
   const activeIndexRef = useRef(0);
   const [activeStar, setActiveStar] = useState<StarProfile | null>(null);
+  const [panelOffset, setPanelOffset] = useState(0);
+
+  const updatePanelOffset = useCallback(() => {
+    const trigger = triggerRefs.current[activeIndexRef.current];
+    if (trigger) setPanelOffset(panelOffsetForTrigger(trigger));
+  }, []);
 
   const closeProfile = useCallback((restoreFocus = true) => {
     setActiveStar(null);
@@ -52,6 +76,7 @@ export function VideoStars({
   useEffect(() => {
     if (!activeStar) return;
 
+    updatePanelOffset();
     window.requestAnimationFrame(() => profileLinkRef.current?.focus());
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -105,16 +130,23 @@ export function VideoStars({
 
     document.addEventListener("keydown", handleKeyDown);
     document.addEventListener("pointerdown", handleOutsidePointer);
+    window.addEventListener("resize", updatePanelOffset);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("pointerdown", handleOutsidePointer);
+      window.removeEventListener("resize", updatePanelOffset);
     };
-  }, [activeStar, closeProfile]);
+  }, [activeStar, closeProfile, updatePanelOffset]);
 
   const openProfile = (star: StarProfile, starIndex: number, event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
+    if (activeStar?.slug === star.slug) {
+      closeProfile(false);
+      return;
+    }
     activeIndexRef.current = starIndex;
+    setPanelOffset(panelOffsetForTrigger(event.currentTarget));
     setActiveStar(star);
   };
 
@@ -155,6 +187,7 @@ export function VideoStars({
           role="dialog"
           aria-labelledby={`${dialogId}-title`}
           aria-describedby={`${dialogId}-description`}
+          style={{ "--panel-offset": `${panelOffset}px` } as CSSProperties}
         >
           <button
             ref={closeButtonRef}
