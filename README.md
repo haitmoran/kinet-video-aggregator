@@ -11,13 +11,14 @@ A high-performance video aggregation interface built with Next.js, React, and Ty
 - Intent-only H.264 MP4 previews on hover, focus, or mobile long-press
 - Automatic 24-item incremental loading with no numbered pages
 - Bright and dark themes with no hydration flash
-- Smart TV overscan mode, enlarged controls, and D-pad grid navigation
+- Smart TV overscan mode with D-pad navigation across videos, talent, and favorites
 - Search plus a collapsible filter drawer for categories, mood, duration, source, and era
 - Featured, newest, most-liked, shortest, and longest ranking modes
 - Browser-local username/password registration with optional recovery email
 - Per-user likes surfaced in the Stars tab
+- Two fictional featured-star profiles per video, with quick previews and static profile pages
 - Dense, edge-to-edge cards with high-contrast overlaid metadata
-- Optional cookie-free Cloudflare Web Analytics with a private owner dashboard
+- Cookie-free visit tracking with an integrated, owner-only analytics dashboard
 - Fully static production export
 
 ## Local development
@@ -41,10 +42,31 @@ Authentication in this static demo is device-local. Passwords are stored as salt
 
 ## Private visitor analytics
 
-Create a free Cloudflare Web Analytics site and provide its public site token at build time:
+The `/analytics/` section is backed by a free Cloudflare Worker and D1 database. The public site receives only the Worker URL; owner credentials, signing secrets, and analytics rows remain server-side.
+
+1. Authenticate Wrangler and create the database:
 
 ```bash
-CLOUDFLARE_WEB_ANALYTICS_TOKEN=your_site_token GITHUB_PAGES=true npm run build
+npx wrangler login
+npx wrangler d1 create kinet-private-analytics
 ```
 
-The beacon loads lazily, does not use cookies, and exposes no analytics inside the public website. Reports remain available only through the authenticated Cloudflare dashboard. Never use a Cloudflare API token here.
+2. Copy `analytics-worker/wrangler.toml.example` to `analytics-worker/wrangler.toml`, then replace the D1 database ID and owner username.
+
+3. Apply the schema and configure the three hidden Worker secrets:
+
+```bash
+npx wrangler d1 execute kinet-private-analytics --remote --file=analytics-worker/schema.sql --config=analytics-worker/wrangler.toml
+npx wrangler secret put ADMIN_PASSWORD --config=analytics-worker/wrangler.toml
+npx wrangler secret put ANALYTICS_SALT --config=analytics-worker/wrangler.toml
+npx wrangler secret put SESSION_SECRET --config=analytics-worker/wrangler.toml
+npx wrangler deploy --config=analytics-worker/wrangler.toml
+```
+
+4. Build the public site with the deployed Worker URL:
+
+```bash
+NEXT_PUBLIC_ANALYTICS_API_URL=https://kinet-private-analytics.your-subdomain.workers.dev GITHUB_PAGES=true npm run build
+```
+
+Tracking respects Do Not Track, uses no cookies, and stores no raw IP addresses. Visitor and session identifiers are pseudonymized with a server-side HMAC secret. The database retains events for 180 days; the dashboard is protected by short-lived signed sessions and rate-limited owner login.

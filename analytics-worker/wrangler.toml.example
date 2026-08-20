@@ -1,0 +1,16 @@
+name = "kinet-private-analytics"
+main = "src/index.js"
+compatibility_date = "2026-08-20"
+workers_dev = true
+
+[vars]
+ADMIN_USERNAME = "replace-with-your-owner-username"
+ALLOWED_ORIGINS = "https://haitmoran.github.io,http://localhost:3000"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kinet-private-analytics"
+database_id = "replace-with-d1-database-id"
+
+[triggers]
+crons = ["17 3 * * *"]

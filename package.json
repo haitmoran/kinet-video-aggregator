@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:auth": "tsc --ignoreConfig lib/localAuth.ts --target ES2022 --module commonjs --lib ES2022,DOM --outDir .auth-test --skipLibCheck && node scripts/auth-smoke.cjs"
+    "test:auth": "tsc --ignoreConfig lib/localAuth.ts --target ES2022 --module commonjs --lib ES2022,DOM --outDir .auth-test --skipLibCheck && node scripts/auth-smoke.cjs",
+    "test:analytics": "node scripts/analytics-worker-smoke.mjs",
+    "test:stars": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/stars-smoke.mjs"
   },
   "dependencies": {
     "next": "latest",

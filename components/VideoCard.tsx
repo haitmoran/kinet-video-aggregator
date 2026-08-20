@@ -11,9 +11,12 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import type { VideoItem } from "@/data/videos";
+import { trackAnalyticsEvent } from "@/lib/analyticsClient";
+import { VideoStars } from "@/components/VideoStars";
 
 type Intent = "hover" | "focus" | "press";
 type VisibilityCallback = (visible: boolean) => void;
+export type VideoCardAction = "star-0" | "star-1" | "open" | "like";
 
 const callbacks = new WeakMap<Element, VisibilityCallback>();
 let observer: IntersectionObserver | null = null;
@@ -74,6 +77,10 @@ type VideoCardProps = {
   priority?: boolean;
   tabIndex?: number;
   onKeyDown?: KeyboardEventHandler<HTMLAnchorElement>;
+  likeTabIndex?: number;
+  onLikeKeyDown?: KeyboardEventHandler<HTMLButtonElement>;
+  starTabIndexes?: readonly [number, number];
+  onStarKeyDown?: KeyboardEventHandler<HTMLButtonElement>;
 };
 
 export function VideoCard({
@@ -84,6 +91,10 @@ export function VideoCard({
   priority = false,
   tabIndex = 0,
   onKeyDown,
+  likeTabIndex = 0,
+  onLikeKeyDown,
+  starTabIndexes,
+  onStarKeyDown,
 }: VideoCardProps) {
   const cardRef = useRef<HTMLAnchorElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -172,9 +183,17 @@ export function VideoCard({
   };
 
   const handleClick = (event: ReactMouseEvent<HTMLAnchorElement>) => {
-    if (!suppressClick.current) return;
-    event.preventDefault();
-    suppressClick.current = false;
+    if (suppressClick.current) {
+      event.preventDefault();
+      suppressClick.current = false;
+      return;
+    }
+
+    trackAnalyticsEvent({
+      type: "video_open",
+      itemId: video.id,
+      itemLabel: video.title,
+    });
   };
 
   const mountPreview = hasIntent && isInViewport && !previewFailed;
@@ -197,8 +216,14 @@ export function VideoCard({
   return (
     <article
       className="video-card"
+      role="listitem"
       data-preview={previewReady ? "ready" : "idle"}
       style={{ "--card-accent": video.accent } as CSSProperties}
+      onFocusCapture={() => addIntent("focus")}
+      onBlurCapture={(event) => {
+        const nextTarget = event.relatedTarget;
+        if (!nextTarget || !event.currentTarget.contains(nextTarget as Node)) removeIntent("focus");
+      }}
     >
       <a
         ref={cardRef}
@@ -208,6 +233,8 @@ export function VideoCard({
         rel="noopener noreferrer nofollow"
         tabIndex={tabIndex}
         data-video-index={index}
+        data-card-action="open"
+        aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Enter"
         aria-label={`${video.title}. ${video.creator} on ${video.platform}. ${compactNumber.format(video.likeCount)} likes. Duration ${video.duration}.`}
         onKeyDown={onKeyDown}
         onMouseEnter={() => {
@@ -222,10 +249,6 @@ export function VideoCard({
           removeIntent("press");
           suppressClick.current = false;
         }}
-        onFocus={() => {
-          if (Date.now() - lastTouchAt.current > 750) addIntent("focus");
-        }}
-        onBlur={() => removeIntent("focus")}
         onContextMenu={(event) => {
           if (suppressClick.current) event.preventDefault();
         }}
@@ -283,7 +306,6 @@ export function VideoCard({
             </svg>
           </span>
           <span className="video-card__duration" aria-hidden="true">{video.duration}</span>
-          <span className="video-card__category" aria-hidden="true">{video.category}</span>
         </div>
 
         <div className="video-card__body">
@@ -303,12 +325,26 @@ export function VideoCard({
         </div>
       </a>
 
+      <VideoStars
+        videoId={video.id}
+        videoTitle={video.title}
+        videoIndex={index}
+        tabIndexes={starTabIndexes}
+        onStarKeyDown={onStarKeyDown}
+      />
+
       <button
         className={`video-card__like ${liked ? "is-liked" : ""}`}
         type="button"
         aria-pressed={liked}
         aria-label={liked ? `Unlike ${video.title}` : `Like ${video.title}`}
+        aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Enter"
+        data-focus-label={liked ? "Remove star" : "Add star"}
         title={liked ? "Remove from Stars" : "Add to Stars"}
+        tabIndex={likeTabIndex}
+        data-video-index={index}
+        data-card-action="like"
+        onKeyDown={onLikeKeyDown}
         onClick={onToggleLike}
       >
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">

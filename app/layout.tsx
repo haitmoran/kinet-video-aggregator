@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CloudflareAnalytics } from "@/components/CloudflareAnalytics";
+import { AnalyticsTracker } from "@/components/AnalyticsTracker";
 import "./globals.css";
 
 const basePath = process.env.GITHUB_PAGES === "true" ? "/kinet-video-aggregator" : "";
@@ -35,7 +35,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body>
         {children}
-        <CloudflareAnalytics />
+        <AnalyticsTracker />
       </body>
     </html>
   );

@@ -1,0 +1,276 @@
+.root {
+  position: absolute;
+  z-index: 12;
+  top: 9px;
+  left: 9px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.indicator {
+  display: inline-flex;
+  min-width: 0;
+  height: 34px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgb(255 255 255 / 38%);
+  border-radius: 999px;
+  background: rgb(9 13 20 / 68%);
+  color: #fff;
+  padding: 3px 8px 3px 3px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 18%);
+  backdrop-filter: blur(10px) saturate(125%);
+  -webkit-backdrop-filter: blur(10px) saturate(125%);
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
+}
+
+.indicator:hover {
+  border-color: rgb(255 255 255 / 72%);
+  background: rgb(9 13 20 / 84%);
+  transform: translateY(-1px);
+}
+
+.indicator:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px var(--focus), 0 8px 24px rgb(0 0 0 / 35%);
+  transform: scale(1.06);
+}
+
+.indicatorPortrait {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 28%);
+}
+
+.indicatorName {
+  overflow: hidden;
+  max-width: 70px;
+  font-size: 0.69rem;
+  font-weight: 790;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backdrop {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgb(4 8 15 / 58%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: backdropIn 150ms ease both;
+}
+
+.dialog {
+  position: relative;
+  width: min(520px, 100%);
+  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  border-radius: 24px;
+  background: var(--surface-raised);
+  color: var(--text);
+  padding: 10px;
+  box-shadow: 0 28px 90px rgb(0 0 0 / 34%);
+  animation: dialogIn 180ms cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.close {
+  position: absolute;
+  z-index: 2;
+  top: 18px;
+  right: 18px;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 45%);
+  border-radius: 50%;
+  background: rgb(17 24 39 / 68%);
+  color: #fff;
+  cursor: pointer;
+}
+
+.close:hover {
+  background: #111827;
+}
+
+.close:focus-visible,
+.profileLink:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.profileLink {
+  display: grid;
+  grid-template-columns: minmax(150px, 42%) minmax(0, 1fr);
+  gap: clamp(18px, 4vw, 30px);
+  align-items: center;
+  border-radius: 17px;
+  color: inherit;
+  padding: 10px;
+  text-decoration: none;
+}
+
+.dialogPortrait {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 19px;
+  box-shadow: 0 12px 34px rgb(17 24 39 / 18%);
+}
+
+.dialogCopy {
+  min-width: 0;
+  padding: 34px 18px 24px 0;
+}
+
+.prototype {
+  display: inline-flex;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 5px 8px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dialogCopy h2 {
+  margin: 12px 0 3px;
+  color: var(--text-strong);
+  font-size: clamp(1.6rem, 5vw, 2.2rem);
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+.role {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 690;
+}
+
+.bio {
+  margin: 16px 0 18px;
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-strong);
+  font-size: 0.84rem;
+  font-weight: 790;
+}
+
+.profileLink:hover .cta svg {
+  transform: translateX(3px);
+}
+
+.cta svg {
+  transition: transform 140ms ease;
+}
+
+@keyframes backdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dialogIn {
+  from { opacity: 0; transform: translateY(10px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 560px) {
+  .indicator {
+    width: 32px;
+    padding: 2px;
+  }
+
+  .indicatorName {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+
+  .indicatorPortrait {
+    width: 26px;
+    height: 26px;
+  }
+
+  .dialog {
+    width: min(390px, 100%);
+  }
+
+  .profileLink {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .dialogPortrait {
+    max-height: 230px;
+    object-fit: cover;
+    object-position: center 25%;
+  }
+
+  .dialogCopy {
+    padding: 18px 12px 14px;
+  }
+}
+
+:global(html[data-tv="true"]) .indicator {
+  height: 46px;
+  gap: 8px;
+  padding: 4px 12px 4px 4px;
+}
+
+:global(html[data-tv="true"]) .indicatorPortrait {
+  width: 36px;
+  height: 36px;
+}
+
+:global(html[data-tv="true"]) .indicatorName {
+  max-width: 100px;
+  font-size: 0.88rem;
+}
+
+:global(html[data-tv="true"]) .dialog {
+  width: min(720px, 70vw);
+}
+
+:global(html[data-tv="true"]) .dialogCopy h2 {
+  font-size: 2.8rem;
+}
+
+:global(html[data-tv="true"]) .role,
+:global(html[data-tv="true"]) .bio,
+:global(html[data-tv="true"]) .cta {
+  font-size: 1.12rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop,
+  .dialog {
+    animation: none;
+  }
+
+  .indicator,
+  .cta svg {
+    transition: none;
+  }
+}

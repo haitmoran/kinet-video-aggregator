@@ -6,3 +6,5 @@ out/
 *.log
 .env*
 !.env.example
+analytics-worker/wrangler.toml
+analytics-worker/.wrangler/

@@ -11,7 +11,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { AuthDialog, type AuthMode } from "@/components/AuthDialog";
-import { VideoCard } from "@/components/VideoCard";
+import { VideoCard, type VideoCardAction } from "@/components/VideoCard";
 import { categories, moods, videos } from "@/data/videos";
 import {
   getLikedVideoIds,
@@ -34,6 +34,13 @@ const rankModes: RankMode[] = ["Featured", "Newest", "Most liked", "Shortest", "
 const durationFilters: DurationFilter[] = ["Any duration", "Under 3 min", "3–6 min", "6–12 min", "12+ min"];
 const sourceFilters: SourceFilter[] = ["All sources", "Internet Archive", "MDN"];
 const eraFilters: EraFilter[] = ["Any era", "Before 2010", "2010s", "2020s"];
+const legacyRemoteKeys: Record<number, string> = {
+  13: "Enter",
+  37: "ArrowLeft",
+  38: "ArrowUp",
+  39: "ArrowRight",
+  40: "ArrowDown",
+};
 
 function SearchIcon() {
   return (
@@ -86,7 +93,8 @@ function CloseIcon() {
   );
 }
 
-function columnCount(): number {
+function columnCount(tvMode: boolean): number {
+  if (tvMode) return 4;
   const width = window.innerWidth;
   if (width < 480) return 1;
   if (width < 768) return 2;
@@ -105,6 +113,10 @@ export function VideoExplorer() {
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const filterDrawerRef = useRef<HTMLElement>(null);
   const filterCloseRef = useRef<HTMLButtonElement>(null);
+  const pendingGridFocusRef = useRef<{
+    index: number;
+    action: VideoCardAction;
+  } | null>(null);
 
   const [theme, setTheme] = useState<Theme>("light");
   const [tvMode, setTvMode] = useState(false);
@@ -119,6 +131,7 @@ export function VideoExplorer() {
   const [eraFilter, setEraFilter] = useState<EraFilter>("Any era");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [focusedIndex, setFocusedIndex] = useState(0);
+  const [focusedAction, setFocusedAction] = useState<VideoCardAction>("open");
   const [currentUser, setCurrentUser] = useState<SessionUser | null>(null);
   const [likedVideoIds, setLikedVideoIds] = useState<Set<string>>(new Set());
   const [authOpen, setAuthOpen] = useState(false);
@@ -250,7 +263,27 @@ export function VideoExplorer() {
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
     setFocusedIndex(0);
+    setFocusedAction("open");
+    pendingGridFocusRef.current = null;
   }, [activeTab, deferredQuery, durationFilter, eraFilter, moodFilter, selectedCategories, sort, sourceFilter]);
+
+  useEffect(() => {
+    const pendingFocus = pendingGridFocusRef.current;
+    if (!pendingFocus || pendingFocus.index >= visibleVideos.length) return;
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      const nextControl = gridRef.current?.querySelector<HTMLElement>(
+        `[data-video-index="${pendingFocus.index}"][data-card-action="${pendingFocus.action}"]`,
+      );
+      if (!nextControl) return;
+
+      pendingGridFocusRef.current = null;
+      nextControl.focus();
+      nextControl.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+    });
+
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [visibleVideos.length]);
 
   useEffect(() => {
     const sentinel = loadMoreRef.current;
@@ -282,8 +315,12 @@ export function VideoExplorer() {
     window.localStorage.setItem("kinet-tv", String(nextValue));
 
     if (nextValue) {
+      setFocusedIndex(0);
+      setFocusedAction("open");
       window.setTimeout(() => {
-        gridRef.current?.querySelector<HTMLAnchorElement>('[data-video-index="0"]')?.focus();
+        gridRef.current
+          ?.querySelector<HTMLAnchorElement>('[data-video-index="0"][data-card-action="open"]')
+          ?.focus();
       }, 0);
     }
   };
@@ -374,33 +411,83 @@ export function VideoExplorer() {
   };
 
   const handleGridKeyDown = (
-    event: KeyboardEvent<HTMLAnchorElement>,
+    event: KeyboardEvent<HTMLElement>,
     index: number,
+    action: VideoCardAction,
   ) => {
-    if (!tvMode || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+    const normalizedKey =
+      ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Enter", "OK", "Select", "Accept"].includes(event.key)
+        ? event.key
+        : legacyRemoteKeys[event.keyCode] ?? event.key;
+
+    if (
+      ["OK", "Select", "Accept"].includes(normalizedKey) ||
+      (normalizedKey === "Enter" && event.key !== "Enter")
+    ) {
+      event.preventDefault();
+      event.currentTarget.click();
       return;
     }
 
-    const columns = columnCount();
-    let target = index;
-    if (event.key === "ArrowDown" && index + columns >= visibleVideos.length && hasMore) {
-      setVisibleCount((count) => Math.min(count + PAGE_SIZE, filteredVideos.length));
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(normalizedKey)) {
+      return;
     }
-    if (event.key === "ArrowLeft" && index % columns !== 0) target = index - 1;
-    if (event.key === "ArrowRight" && index % columns !== columns - 1) target = index + 1;
-    if (event.key === "ArrowUp") target = index - columns;
-    if (event.key === "ArrowDown") target = index + columns;
-
-    target = Math.max(0, Math.min(visibleVideos.length - 1, target));
-    if (target === index) return;
 
     event.preventDefault();
-    setFocusedIndex(target);
-    const nextCard = gridRef.current?.querySelector<HTMLAnchorElement>(
-      `[data-video-index="${target}"]`,
+    const columns = columnCount(tvMode);
+    let targetIndex = index;
+    let targetAction = action;
+
+    if (normalizedKey === "ArrowRight") {
+      if (action === "star-0") {
+        targetAction = "star-1";
+      } else if (action === "star-1") {
+        targetAction = "open";
+      } else if (action === "open") {
+        targetAction = "like";
+      } else if (index % columns !== columns - 1) {
+        targetIndex = index + 1;
+        targetAction = "open";
+      }
+    } else if (normalizedKey === "ArrowLeft") {
+      if (action === "like") {
+        targetAction = "open";
+      } else if (action === "open") {
+        targetAction = "star-1";
+      } else if (action === "star-1") {
+        targetAction = "star-0";
+      } else if (index % columns !== 0) {
+        targetIndex = index - 1;
+        targetAction = "like";
+      }
+    } else if (normalizedKey === "ArrowUp") {
+      targetIndex = index - columns;
+    } else if (normalizedKey === "ArrowDown") {
+      targetIndex = index + columns;
+    }
+
+    if (targetIndex < 0 || targetIndex >= filteredVideos.length) return;
+    if (targetIndex === index && targetAction === action) return;
+
+    setFocusedIndex(targetIndex);
+    setFocusedAction(targetAction);
+
+    if (targetIndex >= visibleVideos.length) {
+      pendingGridFocusRef.current = { index: targetIndex, action: targetAction };
+      setVisibleCount((count) =>
+        Math.min(
+          filteredVideos.length,
+          Math.max(count + PAGE_SIZE, targetIndex + 1),
+        ),
+      );
+      return;
+    }
+
+    const nextControl = gridRef.current?.querySelector<HTMLElement>(
+      `[data-video-index="${targetIndex}"][data-card-action="${targetAction}"]`,
     );
-    nextCard?.focus();
-    nextCard?.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+    nextControl?.focus();
+    nextControl?.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
   };
 
   return (
@@ -554,12 +641,24 @@ export function VideoExplorer() {
             </div>
           ) : visibleVideos.length > 0 ? (
             <>
+              <p className="grid-nav-hint" id="grid-navigation-help">
+                <span aria-hidden="true">D-pad</span>
+                Use arrow keys to move. Each card opens by default; move right for its heart or
+                left for its featured stars. Press Enter or OK to activate.
+              </p>
               <div
                 ref={gridRef}
                 className="video-grid"
+                role="list"
+                aria-label="Video results"
+                aria-describedby="grid-navigation-help"
                 onFocusCapture={(event) => {
-                  const card = (event.target as HTMLElement).closest<HTMLElement>("[data-video-index]");
-                  if (card) setFocusedIndex(Number(card.dataset.videoIndex));
+                  const control = (event.target as HTMLElement).closest<HTMLElement>(
+                    "[data-video-index][data-card-action]",
+                  );
+                  if (!control) return;
+                  setFocusedIndex(Number(control.dataset.videoIndex));
+                  setFocusedAction(control.dataset.cardAction as VideoCardAction);
                 }}
               >
                 {visibleVideos.map((video, index) => (
@@ -570,8 +669,29 @@ export function VideoExplorer() {
                     liked={likedVideoIds.has(video.id)}
                     onToggleLike={() => toggleLike(video.id)}
                     priority={index < 6}
-                    tabIndex={tvMode ? (focusedIndex === index ? 0 : -1) : 0}
-                    onKeyDown={(event) => handleGridKeyDown(event, index)}
+                    tabIndex={
+                      tvMode && !(focusedIndex === index && focusedAction === "open")
+                        ? -1
+                        : 0
+                    }
+                    likeTabIndex={
+                      tvMode && !(focusedIndex === index && focusedAction === "like")
+                        ? -1
+                        : 0
+                    }
+                    starTabIndexes={[
+                      tvMode && !(focusedIndex === index && focusedAction === "star-0") ? -1 : 0,
+                      tvMode && !(focusedIndex === index && focusedAction === "star-1") ? -1 : 0,
+                    ]}
+                    onKeyDown={(event) => handleGridKeyDown(event, index, "open")}
+                    onLikeKeyDown={(event) => handleGridKeyDown(event, index, "like")}
+                    onStarKeyDown={(event) =>
+                      handleGridKeyDown(
+                        event,
+                        index,
+                        event.currentTarget.dataset.cardAction as VideoCardAction,
+                      )
+                    }
                   />
                 ))}
               </div>
@@ -632,6 +752,7 @@ export function VideoExplorer() {
           <a href="#catalog">About</a>
           <a href="#catalog">Sources</a>
           <a href="#catalog">Privacy</a>
+          <a href="analytics/">Analytics</a>
         </div>
       </footer>
 
