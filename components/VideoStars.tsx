@@ -11,6 +11,7 @@ import {
   type KeyboardEventHandler,
   type MouseEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { getStarsForVideo, type StarProfile } from "@/data/stars";
 import { StarPortrait } from "@/components/StarPortrait";
 import styles from "./VideoStars.module.css";
@@ -25,21 +26,76 @@ type VideoStarsProps = {
   onStarKeyDown?: KeyboardEventHandler<HTMLButtonElement>;
 };
 
-function panelOffsetForTrigger(trigger: HTMLButtonElement): number {
-  const card = trigger.closest<HTMLElement>(".video-card");
-  if (!card) return 0;
+type PopoverPlacement = "right" | "left" | "below" | "above";
 
-  const cardBounds = card.getBoundingClientRect();
-  const triggerBounds = trigger.getBoundingClientRect();
+type PopoverPosition = {
+  top: number;
+  left: number;
+  width: number;
+  maxHeight: number;
+  placement: PopoverPlacement;
+};
+
+function positionBesideCard(
+  trigger: HTMLButtonElement,
+  measuredHeight = 260,
+): PopoverPosition {
+  const card = trigger.closest<HTMLElement>(".video-card");
+  const cardBounds = card?.getBoundingClientRect() ?? trigger.getBoundingClientRect();
   const gutter = 12;
+  const gap = 12;
   const tvMode = document.documentElement.dataset.tv === "true";
-  const panelWidth = Math.min(tvMode ? 520 : 380, window.innerWidth - gutter * 2);
-  const idealViewportLeft = triggerBounds.left + triggerBounds.width / 2 - panelWidth / 2;
-  const viewportLeft = Math.max(
+  const idealWidth = tvMode ? 520 : 380;
+  const maximumHeight = Math.max(1, window.innerHeight - gutter * 2);
+  const dialogHeight = Math.min(measuredHeight, maximumHeight);
+  const availableRight = Math.max(0, window.innerWidth - cardBounds.right - gap - gutter);
+  const availableLeft = Math.max(0, cardBounds.left - gap - gutter);
+  const widestSide = Math.max(availableRight, availableLeft);
+
+  if (window.innerWidth >= 700 && widestSide >= 240) {
+    const placement: PopoverPlacement = availableRight >= availableLeft ? "right" : "left";
+    const availableWidth = placement === "right" ? availableRight : availableLeft;
+    const width = Math.min(idealWidth, availableWidth);
+    return {
+      top: Math.max(gutter, Math.min(cardBounds.top, window.innerHeight - dialogHeight - gutter)),
+      left: placement === "right"
+        ? cardBounds.right + gap
+        : cardBounds.left - gap - width,
+      width,
+      maxHeight: maximumHeight,
+      placement,
+    };
+  }
+
+  const width = Math.min(idealWidth, window.innerWidth - gutter * 2);
+  const left = Math.max(
     gutter,
-    Math.min(idealViewportLeft, window.innerWidth - panelWidth - gutter),
+    Math.min(
+      cardBounds.left + cardBounds.width / 2 - width / 2,
+      window.innerWidth - width - gutter,
+    ),
   );
-  return viewportLeft - cardBounds.left;
+  const availableBelow = Math.max(1, window.innerHeight - cardBounds.bottom - gap - gutter);
+  const availableAbove = Math.max(1, cardBounds.top - gap - gutter);
+
+  if (availableBelow >= availableAbove) {
+    return {
+      top: cardBounds.bottom + gap,
+      left,
+      width,
+      maxHeight: availableBelow,
+      placement: "below",
+    };
+  }
+
+  const height = Math.min(dialogHeight, availableAbove);
+  return {
+    top: cardBounds.top - gap - height,
+    left,
+    width,
+    maxHeight: availableAbove,
+    placement: "above",
+  };
 }
 
 export function VideoStars({
@@ -59,11 +115,21 @@ export function VideoStars({
   const dialogRef = useRef<HTMLElement>(null);
   const activeIndexRef = useRef(0);
   const [activeStar, setActiveStar] = useState<StarProfile | null>(null);
-  const [panelOffset, setPanelOffset] = useState(0);
+  const [popoverPosition, setPopoverPosition] = useState<PopoverPosition>({
+    top: 12,
+    left: 12,
+    width: 380,
+    maxHeight: 520,
+    placement: "right",
+  });
 
-  const updatePanelOffset = useCallback(() => {
+  const updatePopoverPosition = useCallback(() => {
     const trigger = triggerRefs.current[activeIndexRef.current];
-    if (trigger) setPanelOffset(panelOffsetForTrigger(trigger));
+    if (trigger) {
+      setPopoverPosition(
+        positionBesideCard(trigger, dialogRef.current?.offsetHeight ?? 260),
+      );
+    }
   }, []);
 
   const closeProfile = useCallback((restoreFocus = true) => {
@@ -76,7 +142,7 @@ export function VideoStars({
   useEffect(() => {
     if (!activeStar) return;
 
-    updatePanelOffset();
+    updatePopoverPosition();
     window.requestAnimationFrame(() => profileLinkRef.current?.focus());
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -130,13 +196,15 @@ export function VideoStars({
 
     document.addEventListener("keydown", handleKeyDown);
     document.addEventListener("pointerdown", handleOutsidePointer);
-    window.addEventListener("resize", updatePanelOffset);
+    window.addEventListener("resize", updatePopoverPosition);
+    window.addEventListener("scroll", updatePopoverPosition, true);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("pointerdown", handleOutsidePointer);
-      window.removeEventListener("resize", updatePanelOffset);
+      window.removeEventListener("resize", updatePopoverPosition);
+      window.removeEventListener("scroll", updatePopoverPosition, true);
     };
-  }, [activeStar, closeProfile, updatePanelOffset]);
+  }, [activeStar, closeProfile, updatePopoverPosition]);
 
   const openProfile = (star: StarProfile, starIndex: number, event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -146,7 +214,7 @@ export function VideoStars({
       return;
     }
     activeIndexRef.current = starIndex;
-    setPanelOffset(panelOffsetForTrigger(event.currentTarget));
+    setPopoverPosition(positionBesideCard(event.currentTarget));
     setActiveStar(star);
   };
 
@@ -179,16 +247,23 @@ export function VideoStars({
         ))}
       </div>
 
-      {activeStar && (
-        <section
-          ref={dialogRef}
-          id={dialogId}
-          className={styles.dialog}
-          role="dialog"
-          aria-labelledby={`${dialogId}-title`}
-          aria-describedby={`${dialogId}-description`}
-          style={{ "--panel-offset": `${panelOffset}px` } as CSSProperties}
-        >
+      {activeStar && typeof document !== "undefined" && createPortal(
+        <div className={styles.popoverLayer}>
+          <section
+            ref={dialogRef}
+            id={dialogId}
+            className={styles.dialog}
+            data-placement={popoverPosition.placement}
+            role="dialog"
+            aria-labelledby={`${dialogId}-title`}
+            aria-describedby={`${dialogId}-description`}
+            style={{
+              "--popover-top": `${popoverPosition.top}px`,
+              "--popover-left": `${popoverPosition.left}px`,
+              "--popover-width": `${popoverPosition.width}px`,
+              "--popover-max-height": `${popoverPosition.maxHeight}px`,
+            } as CSSProperties}
+          >
           <button
             ref={closeButtonRef}
             className={styles.close}
@@ -233,7 +308,9 @@ export function VideoStars({
               </span>
             </div>
           </Link>
-        </section>
+          </section>
+        </div>,
+        document.body,
       )}
     </>
   );

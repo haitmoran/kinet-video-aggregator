@@ -61,23 +61,52 @@
   white-space: nowrap;
 }
 
+.popoverLayer {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  pointer-events: none;
+}
+
 .dialog {
-  position: relative;
-  left: var(--panel-offset, 0px);
-  z-index: 6;
-  width: min(380px, calc(100vw - 24px));
-  max-height: var(--dialog-expanded-height, 360px);
-  overflow: hidden;
-  margin-top: 8px;
-  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
-  border-top: 3px solid var(--accent);
-  border-radius: 17px;
-  background: var(--surface-raised);
+  --popup-entry-x: 0px;
+  --popup-entry-y: 0px;
+  position: absolute;
+  top: var(--popover-top);
+  left: var(--popover-left);
+  width: var(--popover-width, 380px);
+  max-height: min(var(--popover-max-height, 520px), calc(100vh - 24px));
+  overflow-y: auto;
+  border: 1px solid color-mix(in srgb, var(--line) 68%, rgb(255 255 255 / 42%));
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
   color: var(--text);
   padding: 8px;
-  box-shadow: 0 18px 46px rgb(17 24 39 / 22%);
-  animation: dialogIn 240ms cubic-bezier(.16, .8, .24, 1) both;
+  box-shadow: 0 22px 64px rgb(10 15 25 / 28%);
+  backdrop-filter: blur(22px) saturate(135%);
+  -webkit-backdrop-filter: blur(22px) saturate(135%);
+  animation: dialogIn 210ms cubic-bezier(.16, .8, .24, 1) both;
+  pointer-events: auto;
+}
+
+.dialog[data-placement="right"] {
+  --popup-entry-x: -10px;
+  transform-origin: left center;
+}
+
+.dialog[data-placement="left"] {
+  --popup-entry-x: 10px;
+  transform-origin: right center;
+}
+
+.dialog[data-placement="below"] {
+  --popup-entry-y: -8px;
   transform-origin: top center;
+}
+
+.dialog[data-placement="above"] {
+  --popup-entry-y: 8px;
+  transform-origin: bottom center;
 }
 
 .close {
@@ -193,16 +222,12 @@
 
 @keyframes dialogIn {
   from {
-    max-height: 0;
-    margin-top: 0;
     opacity: 0;
-    transform: translateY(-7px) scale(.985);
+    transform: translate(var(--popup-entry-x), var(--popup-entry-y)) scale(.97);
   }
   to {
-    max-height: var(--dialog-expanded-height, 360px);
-    margin-top: 8px;
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translate(0, 0) scale(1);
   }
 }
 
@@ -262,8 +287,6 @@
 }
 
 :global(html[data-tv="true"]) .dialog {
-  --dialog-expanded-height: 430px;
-  width: min(520px, calc(100vw - 10vw));
   padding: 10px;
 }
 

@@ -1,9 +1,11 @@
 "use client";
 
-import Link from "next/link";
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { StarPortrait } from "@/components/StarPortrait";
-import type { StarProfile } from "@/data/stars";
+import { getStarSlugsForVideo, type StarProfile } from "@/data/stars";
+import { videos } from "@/data/videos";
+import { trackAnalyticsEvent } from "@/lib/analyticsClient";
 import type { StarCardPreferences } from "@/lib/displayPreferences";
 import styles from "./StarDirectory.module.css";
 
@@ -42,9 +44,63 @@ type StarDirectoryProps = {
 
 export function StarDirectory({ entries, tvMode, columns, details }: StarDirectoryProps) {
   const gridRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const drawerRef = useRef<HTMLElement>(null);
+  const drawerCloseRef = useRef<HTMLButtonElement>(null);
   const [focusedIndex, setFocusedIndex] = useState(0);
+  const [activeEntry, setActiveEntry] = useState<StarDirectoryEntry | null>(null);
+  const [showAllVideos, setShowAllVideos] = useState(false);
+  const activeIndexRef = useRef(0);
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLAnchorElement>, index: number) => {
+  const closeDrawer = useCallback((restoreFocus = true) => {
+    setActiveEntry(null);
+    setShowAllVideos(false);
+    if (restoreFocus) {
+      window.requestAnimationFrame(() => cardRefs.current[activeIndexRef.current]?.focus());
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!activeEntry) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.requestAnimationFrame(() => drawerCloseRef.current?.focus());
+
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeDrawer();
+      } else if (["OK", "Select", "Accept"].includes(event.key)) {
+        event.preventDefault();
+        (document.activeElement as HTMLElement | null)?.click();
+      } else if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+        const focusable = [...(drawerRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+        ) ?? [])];
+        const currentIndex = focusable.indexOf(document.activeElement as HTMLElement);
+        const direction = event.key === "ArrowDown" || event.key === "ArrowRight" ? 1 : -1;
+        const nextIndex = Math.max(0, Math.min(focusable.length - 1, currentIndex + direction));
+        if (focusable[nextIndex]) {
+          event.preventDefault();
+          focusable[nextIndex].focus();
+          focusable[nextIndex].scrollIntoView({ block: "nearest", inline: "nearest" });
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [activeEntry, closeDrawer]);
+
+  const relatedVideos = activeEntry
+    ? videos.filter((video) => getStarSlugsForVideo(video.id).includes(activeEntry.profile.slug))
+    : [];
+  const displayedVideos = showAllVideos ? relatedVideos : relatedVideos.slice(0, 6);
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     const key = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Enter", "OK", "Select", "Accept"].includes(event.key)
       ? event.key
       : remoteKeys[event.keyCode] ?? event.key;
@@ -72,43 +128,141 @@ export function StarDirectory({ entries, tvMode, columns, details }: StarDirecto
 
     event.preventDefault();
     setFocusedIndex(target);
-    const nextCard = gridRef.current?.querySelector<HTMLAnchorElement>(`[data-star-card-index="${target}"]`);
+    const nextCard = gridRef.current?.querySelector<HTMLButtonElement>(`[data-star-card-index="${target}"]`);
     nextCard?.focus();
     nextCard?.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
   };
 
   return (
     <div ref={gridRef} className={styles.grid} role="list" aria-label="Featured stars">
-      {entries.map(({ profile, appearances, totalLikes, newestYear }, index) => (
-        <Link
-          key={profile.slug}
-          className={styles.card}
-          href={`/stars/${profile.slug}/`}
-          role="listitem"
-          tabIndex={tvMode ? (focusedIndex === index ? 0 : -1) : 0}
-          data-star-card-index={index}
-          aria-label={`${profile.name}, ${profile.role}, ${profile.location}`}
-          aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Enter"
-          onFocus={() => setFocusedIndex(index)}
-          onKeyDown={(event) => handleKeyDown(event, index)}
-        >
-          <StarPortrait star={profile} className={styles.portrait} decorative={false} />
-          <div className={styles.shade} aria-hidden="true" />
-          <span className={styles.prototype}>Demo profile</span>
-          <div className={styles.copy}>
-            {details.role && <p>{profile.role}</p>}
-            {details.name && <h2>{profile.name}</h2>}
-            {details.location && <span>{profile.location}</span>}
-            {(details.appearances || details.likes || details.latest) && (
-              <div className={styles.meta}>
-                {details.appearances && <span>{appearances} stories</span>}
-                {details.likes && <span>{compactNumber.format(totalLikes)} likes</span>}
-                {details.latest && <span>Latest {newestYear}</span>}
+      {entries.map((entry, index) => {
+        const { profile, appearances, totalLikes, newestYear } = entry;
+        return (
+          <article key={profile.slug} className={styles.item} role="listitem">
+            <button
+              ref={(element) => { cardRefs.current[index] = element; }}
+              className={styles.card}
+              type="button"
+              tabIndex={tvMode ? (focusedIndex === index ? 0 : -1) : 0}
+              data-star-card-index={index}
+              aria-label={`Open ${profile.name}, ${profile.role}, ${profile.location}`}
+              aria-haspopup="dialog"
+              aria-expanded={activeEntry?.profile.slug === profile.slug}
+              aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Enter"
+              onFocus={() => setFocusedIndex(index)}
+              onKeyDown={(event) => handleKeyDown(event, index)}
+              onClick={() => {
+                activeIndexRef.current = index;
+                setShowAllVideos(false);
+                setActiveEntry(entry);
+              }}
+            >
+              <StarPortrait star={profile} className={styles.portrait} decorative={false} />
+              <div className={styles.shade} aria-hidden="true" />
+              <span className={styles.prototype}>Demo profile</span>
+              <div className={styles.copy}>
+                {details.role && <p>{profile.role}</p>}
+                {details.name && <h2>{profile.name}</h2>}
+                {details.location && <span>{profile.location}</span>}
+                {(details.appearances || details.likes || details.latest) && (
+                  <div className={styles.meta}>
+                    {details.appearances && <span>{appearances} stories</span>}
+                    {details.likes && <span>{compactNumber.format(totalLikes)} likes</span>}
+                    {details.latest && <span>Latest {newestYear}</span>}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </Link>
-      ))}
+            </button>
+          </article>
+        );
+      })}
+
+      {activeEntry && typeof document !== "undefined" && createPortal(
+        <div className={styles.drawerLayer} role="presentation" onPointerDown={() => closeDrawer()}>
+          <aside
+            ref={drawerRef}
+            className={styles.drawer}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="star-drawer-title"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <button
+              ref={drawerCloseRef}
+              className={styles.drawerClose}
+              type="button"
+              aria-label="Close star details"
+              onClick={() => closeDrawer()}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <path d="m6.5 6.5 11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            </button>
+            <StarPortrait star={activeEntry.profile} className={styles.drawerPortrait} decorative={false} />
+            <p className={styles.drawerEyebrow}>Featured star</p>
+            <h2 id="star-drawer-title">{activeEntry.profile.name}</h2>
+            <p className={styles.drawerRole}>{activeEntry.profile.role}</p>
+            <p className={styles.drawerLocation}>{activeEntry.profile.location}</p>
+            <p className={styles.drawerBio}>{activeEntry.profile.bio}</p>
+            <div className={styles.drawerStats}>
+              <span><strong>{activeEntry.appearances}</strong> stories</span>
+              <span><strong>{compactNumber.format(activeEntry.totalLikes)}</strong> likes</span>
+              <span><strong>{activeEntry.newestYear}</strong> latest</span>
+            </div>
+            <div className={styles.drawerSpecialties}>
+              {activeEntry.profile.specialties.map((specialty) => <span key={specialty}>{specialty}</span>)}
+            </div>
+            <section className={styles.drawerCredits} aria-label="Featured credits">
+              <h3>Featured credits</h3>
+              {activeEntry.profile.featuredCredits.map((credit) => (
+                <div key={`${credit.title}-${credit.year}`}>
+                  <strong>{credit.title}</strong>
+                  <span>{credit.role} · {credit.year}</span>
+                </div>
+              ))}
+            </section>
+
+            <section className={styles.drawerVideos} aria-label={`Videos featuring ${activeEntry.profile.name}`}>
+              <div className={styles.drawerSectionHeading}>
+                <h3>Videos featuring {activeEntry.profile.firstName}</h3>
+                <span>{activeEntry.appearances}</span>
+              </div>
+              <div className={styles.drawerVideoGrid}>
+                {displayedVideos.map((video) => (
+                  <a
+                    key={video.id}
+                    className={styles.drawerVideo}
+                    href={video.href}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    onClick={() => trackAnalyticsEvent({
+                      type: "video_open",
+                      itemId: video.id,
+                      itemLabel: video.title,
+                    })}
+                  >
+                    <img src={video.thumbnail} alt="" width="160" height="90" loading="lazy" decoding="async" />
+                    <span>
+                      <strong>{video.title}</strong>
+                      <small>{video.platform} · {video.duration}</small>
+                    </span>
+                  </a>
+                ))}
+              </div>
+              {!showAllVideos && relatedVideos.length > displayedVideos.length && (
+                <button
+                  className={styles.showAllVideos}
+                  type="button"
+                  onClick={() => setShowAllVideos(true)}
+                >
+                  Show all {relatedVideos.length} videos
+                </button>
+              )}
+            </section>
+          </aside>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

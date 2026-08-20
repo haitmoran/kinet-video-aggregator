@@ -4,16 +4,27 @@
   gap: clamp(8px, 0.8vw, 14px);
 }
 
+.item {
+  min-width: 0;
+}
+
 .card {
   position: relative;
+  display: block;
+  width: 100%;
   min-width: 0;
   aspect-ratio: 16 / 9;
   overflow: hidden;
+  border: 0;
   border-radius: 10px;
   background: var(--control);
   color: #fff;
+  padding: 0;
+  font: inherit;
+  text-align: left;
   content-visibility: auto;
   contain-intrinsic-size: auto 220px;
+  cursor: pointer;
   text-decoration: none;
   isolation: isolate;
 }
@@ -133,6 +144,269 @@
   outline-offset: 4px;
 }
 
+.drawerLayer {
+  position: fixed;
+  z-index: 180;
+  inset: 0;
+  background: rgb(8 12 20 / 12%);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.drawer {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: min(430px, calc(100vw - 24px));
+  overflow-y: auto;
+  border: 1px solid color-mix(in srgb, var(--line) 68%, rgb(255 255 255 / 45%));
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--surface-raised) 92%, transparent);
+  color: var(--text);
+  padding: 14px;
+  box-shadow: 0 26px 80px rgb(8 12 20 / 30%);
+  backdrop-filter: blur(24px) saturate(135%);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+  animation: drawerIn 240ms cubic-bezier(.16, .8, .24, 1) both;
+}
+
+.drawerClose {
+  position: absolute;
+  z-index: 3;
+  top: 26px;
+  right: 26px;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 42%);
+  border-radius: 50%;
+  background: rgb(17 24 39 / 66%);
+  color: #fff;
+  cursor: pointer;
+}
+
+.drawerClose:hover {
+  background: #111827;
+}
+
+.drawerClose:focus-visible,
+.drawerVideo:focus-visible,
+.showAllVideos:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.drawerPortrait {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 15px;
+}
+
+.drawerEyebrow {
+  margin: 20px 0 7px;
+  color: var(--accent);
+  font-size: 0.65rem;
+  font-weight: 820;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.drawer h2 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+}
+
+.drawerRole,
+.drawerLocation {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 680;
+}
+
+.drawerLocation {
+  margin-top: 3px;
+  color: var(--quiet);
+  font-weight: 560;
+}
+
+.drawerBio {
+  margin: 18px 0;
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
+
+.drawerStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.drawerStats span {
+  border: 1px solid var(--line-soft);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--control) 82%, transparent);
+  padding: 10px 8px;
+  color: var(--muted);
+  font-size: 0.64rem;
+  text-align: center;
+}
+
+.drawerStats strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--text-strong);
+  font-size: 0.94rem;
+}
+
+.drawerSpecialties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 16px;
+}
+
+.drawerSpecialties span {
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 6px 9px;
+  font-size: 0.66rem;
+  font-weight: 720;
+}
+
+.drawerCredits,
+.drawerVideos {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.drawerCredits h3,
+.drawerSectionHeading h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 0.8rem;
+}
+
+.drawerCredits > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.drawerCredits strong {
+  color: var(--text);
+  font-size: 0.72rem;
+}
+
+.drawerCredits span {
+  color: var(--quiet);
+  font-size: 0.65rem;
+  text-align: right;
+}
+
+.drawerSectionHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.drawerSectionHeading > span {
+  border-radius: 999px;
+  background: var(--control);
+  color: var(--muted);
+  padding: 4px 7px;
+  font-size: 0.62rem;
+  font-weight: 730;
+}
+
+.drawerVideoGrid {
+  display: grid;
+  gap: 7px;
+}
+
+.drawerVideo {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  border-radius: 10px;
+  color: inherit;
+  padding: 5px;
+  text-decoration: none;
+  transition: background-color 140ms ease, transform 140ms ease;
+}
+
+.drawerVideo:hover {
+  background: var(--control);
+  transform: translateX(-2px);
+}
+
+.drawerVideo img {
+  display: block;
+  width: 96px;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 7px;
+}
+
+.drawerVideo > span,
+.drawerVideo strong,
+.drawerVideo small {
+  min-width: 0;
+}
+
+.drawerVideo strong,
+.drawerVideo small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawerVideo strong {
+  color: var(--text-strong);
+  font-size: 0.72rem;
+}
+
+.drawerVideo small {
+  margin-top: 4px;
+  color: var(--quiet);
+  font-size: 0.62rem;
+}
+
+.showAllVideos {
+  width: 100%;
+  min-height: 40px;
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--control);
+  color: var(--text-strong);
+  font-size: 0.72rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+@keyframes drawerIn {
+  from { opacity: 0; transform: translateX(24px) scale(.985); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
 @media (min-width: 30rem) {
   .grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -180,8 +454,46 @@
   box-shadow: 0 0 28px rgb(251 191 36 / 52%);
 }
 
+:global(html[data-tv="true"]) .drawer {
+  top: 5vh;
+  right: 5vw;
+  bottom: 5vh;
+  width: min(600px, 42vw);
+  padding: 22px;
+}
+
+:global(html[data-tv="true"]) .drawerVideo {
+  grid-template-columns: 140px minmax(0, 1fr);
+  min-height: 82px;
+}
+
+:global(html[data-tv="true"]) .drawerVideo img {
+  width: 140px;
+}
+
+:global(html[data-tv="true"]) .drawerVideo strong,
+:global(html[data-tv="true"]) .drawerRole,
+:global(html[data-tv="true"]) .drawerBio {
+  font-size: 1rem;
+}
+
+@media (max-width: 36rem) {
+  .drawer {
+    top: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: calc(100vw - 16px);
+    border-radius: 18px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .portrait {
+  .portrait,
+  .drawerVideo {
     transition: none;
+  }
+
+  .drawer {
+    animation: none;
   }
 }
