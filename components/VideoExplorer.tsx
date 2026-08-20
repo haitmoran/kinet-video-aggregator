@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useDeferredValue,
   useEffect,
   useMemo,
@@ -9,21 +10,22 @@ import {
   type ChangeEvent,
   type KeyboardEvent,
 } from "react";
+import { AuthDialog, type AuthMode } from "@/components/AuthDialog";
 import { VideoCard } from "@/components/VideoCard";
 import { categories, videos } from "@/data/videos";
+import {
+  getLikedVideoIds,
+  getSession,
+  saveLikedVideoIds,
+  signOut,
+  type SessionUser,
+} from "@/lib/localAuth";
 
 type Theme = "light" | "dark";
 type MainTab = "Trending" | "Latest" | "Categories" | "Stars";
 
 const PAGE_SIZE = 24;
 const mainTabs: MainTab[] = ["Trending", "Latest", "Categories", "Stars"];
-const starCreators = new Set([
-  "Blender Studio",
-  "Hjalti Hjálmarsson",
-  "Pablo Vazquez",
-  "Daniel Martínez Lara",
-  "Durian Open Movie",
-]);
 
 function SearchIcon() {
   return (
@@ -76,6 +78,7 @@ export function VideoExplorer() {
   const catalogRef = useRef<HTMLElement>(null);
   const categoryBarRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const accountRef = useRef<HTMLDivElement>(null);
 
   const [theme, setTheme] = useState<Theme>("light");
   const [tvMode, setTvMode] = useState(false);
@@ -85,6 +88,12 @@ export function VideoExplorer() {
   const [sort, setSort] = useState("Trending");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [focusedIndex, setFocusedIndex] = useState(0);
+  const [currentUser, setCurrentUser] = useState<SessionUser | null>(null);
+  const [likedVideoIds, setLikedVideoIds] = useState<Set<string>>(new Set());
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>("login");
+  const [pendingLikeId, setPendingLikeId] = useState<string | null>(null);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
 
   useEffect(() => {
@@ -92,7 +101,20 @@ export function VideoExplorer() {
     const savedTvMode = window.localStorage.getItem("kinet-tv") === "true";
     setTvMode(savedTvMode);
     document.documentElement.dataset.tv = String(savedTvMode);
+
+    const session = getSession();
+    setCurrentUser(session);
+    if (session) setLikedVideoIds(getLikedVideoIds(session.normalizedUsername));
   }, []);
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    const closeMenu = (event: PointerEvent) => {
+      if (!accountRef.current?.contains(event.target as Node)) setAccountMenuOpen(false);
+    };
+    window.addEventListener("pointerdown", closeMenu);
+    return () => window.removeEventListener("pointerdown", closeMenu);
+  }, [accountMenuOpen]);
 
   useEffect(() => {
     const shortcut = (event: globalThis.KeyboardEvent) => {
@@ -109,7 +131,8 @@ export function VideoExplorer() {
   const filteredVideos = useMemo(() => {
     const matching = videos.filter((video) => {
       const matchesCategory = category === "All" || video.category === category;
-      const matchesStars = activeTab !== "Stars" || starCreators.has(video.creator);
+      const matchesStars =
+        activeTab !== "Stars" || Boolean(currentUser && likedVideoIds.has(video.id));
       const haystack = `${video.title} ${video.creator} ${video.platform} ${video.category}`.toLowerCase();
       return matchesCategory && matchesStars && (!deferredQuery || haystack.includes(deferredQuery));
     });
@@ -119,7 +142,7 @@ export function VideoExplorer() {
       return [...matching].sort((a, b) => a.duration.localeCompare(b.duration));
     }
     return matching;
-  }, [activeTab, category, deferredQuery, sort]);
+  }, [activeTab, category, currentUser, deferredQuery, likedVideoIds, sort]);
 
   const visibleVideos = useMemo(
     () => filteredVideos.slice(0, visibleCount),
@@ -170,12 +193,64 @@ export function VideoExplorer() {
 
   const selectTab = (tab: MainTab) => {
     setActiveTab(tab);
-    if (tab === "Trending") setSort("Trending");
-    if (tab === "Latest") setSort("Newest");
+    if (tab === "Trending") {
+      setSort("Trending");
+      setCategory("All");
+    }
+    if (tab === "Latest") {
+      setSort("Newest");
+      setCategory("All");
+    }
     if (tab === "Categories") {
       window.setTimeout(() => categoryBarRef.current?.scrollIntoView({ block: "center" }), 0);
     }
+    if (tab === "Stars") {
+      setCategory("All");
+      setSort("Trending");
+    }
     catalogRef.current?.scrollIntoView({ block: "start" });
+  };
+
+  const openAuth = (mode: AuthMode, pendingVideoId: string | null = null) => {
+    setAuthMode(mode);
+    setPendingLikeId(pendingVideoId);
+    setAuthOpen(true);
+    setAccountMenuOpen(false);
+  };
+
+  const closeAuth = useCallback(() => {
+    setAuthOpen(false);
+    setPendingLikeId(null);
+  }, []);
+
+  const handleAuthenticated = (user: SessionUser) => {
+    const nextLikes = getLikedVideoIds(user.normalizedUsername);
+    if (pendingLikeId) {
+      nextLikes.add(pendingLikeId);
+      saveLikedVideoIds(user.normalizedUsername, nextLikes);
+    }
+    setCurrentUser(user);
+    setLikedVideoIds(new Set(nextLikes));
+  };
+
+  const toggleLike = (videoId: string) => {
+    if (!currentUser) {
+      openAuth("login", videoId);
+      return;
+    }
+
+    const nextLikes = new Set(likedVideoIds);
+    if (nextLikes.has(videoId)) nextLikes.delete(videoId);
+    else nextLikes.add(videoId);
+    saveLikedVideoIds(currentUser.normalizedUsername, nextLikes);
+    setLikedVideoIds(nextLikes);
+  };
+
+  const handleSignOut = () => {
+    signOut();
+    setCurrentUser(null);
+    setLikedVideoIds(new Set());
+    setAccountMenuOpen(false);
   };
 
   const handleGridKeyDown = (
@@ -216,7 +291,9 @@ export function VideoExplorer() {
           ? "Browse every category"
           : category
         : activeTab === "Stars"
-          ? "Creator stars"
+          ? currentUser
+            ? "Your liked videos"
+            : "Your Stars collection"
           : "Trending across the web";
 
   return (
@@ -273,7 +350,49 @@ export function VideoExplorer() {
           >
             {theme === "light" ? <MoonIcon /> : <SunIcon />}
           </button>
-          <button className="avatar" type="button" aria-label="Open profile">MH</button>
+
+          {currentUser ? (
+            <div ref={accountRef} className="account-control">
+              <button
+                className="account-button"
+                type="button"
+                aria-expanded={accountMenuOpen}
+                aria-haspopup="menu"
+                onClick={() => setAccountMenuOpen((open) => !open)}
+              >
+                <span className="avatar" aria-hidden="true">
+                  {currentUser.username.slice(0, 2).toUpperCase()}
+                </span>
+                <span className="account-button__name">{currentUser.username}</span>
+              </button>
+
+              {accountMenuOpen && (
+                <div className="account-menu" role="menu">
+                  <div className="account-menu__identity">
+                    <strong>@{currentUser.username}</strong>
+                    <span>{likedVideoIds.size} liked videos</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      selectTab("Stars");
+                      setAccountMenuOpen(false);
+                    }}
+                  >
+                    Open Stars
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => openAuth("change")}>Change password</button>
+                  <button className="is-danger" type="button" role="menuitem" onClick={handleSignOut}>Sign out</button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="guest-actions">
+              <button className="sign-in-button" type="button" onClick={() => openAuth("login")}>Sign in</button>
+              <button className="register-button" type="button" onClick={() => openAuth("register")}>Register</button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -325,7 +444,21 @@ export function VideoExplorer() {
             ))}
           </div>
 
-          {visibleVideos.length > 0 ? (
+          {activeTab === "Stars" && !currentUser ? (
+            <div className="auth-gate">
+              <span className="auth-gate__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+                  <path d="M12 20.3 4.2 12.8A4.8 4.8 0 0 1 11 6l1 1 1-1a4.8 4.8 0 0 1 6.8 6.8L12 20.3Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <h2>Keep every favorite in one place</h2>
+              <p>Register or sign in to like videos and see them here whenever you return.</p>
+              <div className="auth-gate__actions">
+                <button type="button" onClick={() => openAuth("register")}>Register</button>
+                <button type="button" onClick={() => openAuth("login")}>Sign in</button>
+              </div>
+            </div>
+          ) : visibleVideos.length > 0 ? (
             <>
               <div
                 ref={gridRef}
@@ -340,6 +473,8 @@ export function VideoExplorer() {
                     key={video.id}
                     video={video}
                     index={index}
+                    liked={likedVideoIds.has(video.id)}
+                    onToggleLike={() => toggleLike(video.id)}
                     priority={index < 6}
                     tabIndex={tvMode ? (focusedIndex === index ? 0 : -1) : 0}
                     onKeyDown={(event) => handleGridKeyDown(event, index)}
@@ -371,8 +506,12 @@ export function VideoExplorer() {
           ) : (
             <div className="empty-state">
               <span className="empty-state__icon"><SearchIcon /></span>
-              <h2>No stories found</h2>
-              <p>Try a broader search or choose another category.</p>
+              <h2>{activeTab === "Stars" ? "No liked videos yet" : "No stories found"}</h2>
+              <p>
+                {activeTab === "Stars"
+                  ? "Tap the heart on any video to save it here."
+                  : "Try a broader search or choose another category."}
+              </p>
               <button
                 type="button"
                 onClick={() => {
@@ -381,7 +520,7 @@ export function VideoExplorer() {
                   setActiveTab("Trending");
                 }}
               >
-                Clear filters
+                {activeTab === "Stars" ? "Explore videos" : "Clear filters"}
               </button>
             </div>
           )}
@@ -400,6 +539,15 @@ export function VideoExplorer() {
           <a href="#catalog">Privacy</a>
         </div>
       </footer>
+
+      <AuthDialog
+        open={authOpen}
+        mode={authMode}
+        currentUser={currentUser}
+        onModeChange={setAuthMode}
+        onAuthenticated={handleAuthenticated}
+        onClose={closeAuth}
+      />
     </div>
   );
 }

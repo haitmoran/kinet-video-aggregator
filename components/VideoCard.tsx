@@ -65,6 +65,8 @@ function previewIsAllowed(): boolean {
 type VideoCardProps = {
   video: VideoItem;
   index: number;
+  liked: boolean;
+  onToggleLike: () => void;
   priority?: boolean;
   tabIndex?: number;
   onKeyDown?: KeyboardEventHandler<HTMLAnchorElement>;
@@ -73,6 +75,8 @@ type VideoCardProps = {
 export function VideoCard({
   video,
   index,
+  liked,
+  onToggleLike,
   priority = false,
   tabIndex = 0,
   onKeyDown,
@@ -187,120 +191,126 @@ export function VideoCard({
   }, [mountPreview, video.preview]);
 
   return (
-    <a
-      ref={cardRef}
+    <article
       className="video-card"
-      href={video.href}
-      target="_blank"
-      rel="noopener noreferrer nofollow"
-      tabIndex={tabIndex}
-      data-video-index={index}
       data-preview={previewReady ? "ready" : "idle"}
       style={{ "--card-accent": video.accent } as CSSProperties}
-      aria-label={`${video.title}. ${video.creator} on ${video.platform}. ${video.views}. Duration ${video.duration}.`}
-      onKeyDown={onKeyDown}
-      onMouseEnter={() => {
-        if (Date.now() - lastTouchAt.current > 750) addIntent("hover");
-      }}
-      onMouseLeave={() => removeIntent("hover")}
-      onPointerLeave={handlePointerLeave}
-      onPointerDown={handlePointerDown}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={() => {
-        clearLongPress();
-        removeIntent("press");
-        suppressClick.current = false;
-      }}
-      onFocus={() => {
-        if (Date.now() - lastTouchAt.current > 750) addIntent("focus");
-      }}
-      onBlur={() => removeIntent("focus")}
-      onContextMenu={(event) => {
-        if (suppressClick.current) event.preventDefault();
-      }}
-      onClick={handleClick}
     >
-      <div className="video-card__media">
-        {hasEnteredViewport ? (
-          <img
-            className={`video-card__image ${previewReady ? "is-hidden" : ""}`}
-            src={video.thumbnail}
-            width={640}
-            height={360}
-            alt=""
-            loading={priority ? "eager" : "lazy"}
-            fetchPriority={priority ? "high" : "low"}
-            decoding="async"
-            draggable={false}
-          />
-        ) : (
-          <span className="video-card__placeholder" aria-hidden="true" />
-        )}
+      <a
+        ref={cardRef}
+        className="video-card__link"
+        href={video.href}
+        target="_blank"
+        rel="noopener noreferrer nofollow"
+        tabIndex={tabIndex}
+        data-video-index={index}
+        aria-label={`${video.title}. ${video.creator} on ${video.platform}. ${video.views}. Duration ${video.duration}.`}
+        onKeyDown={onKeyDown}
+        onMouseEnter={() => {
+          if (Date.now() - lastTouchAt.current > 750) addIntent("hover");
+        }}
+        onMouseLeave={() => removeIntent("hover")}
+        onPointerLeave={handlePointerLeave}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={() => {
+          clearLongPress();
+          removeIntent("press");
+          suppressClick.current = false;
+        }}
+        onFocus={() => {
+          if (Date.now() - lastTouchAt.current > 750) addIntent("focus");
+        }}
+        onBlur={() => removeIntent("focus")}
+        onContextMenu={(event) => {
+          if (suppressClick.current) event.preventDefault();
+        }}
+        onClick={handleClick}
+      >
+        <div className="video-card__media">
+          {hasEnteredViewport ? (
+            <img
+              className={`video-card__image ${previewReady ? "is-hidden" : ""}`}
+              src={video.thumbnail}
+              width={640}
+              height={360}
+              alt=""
+              loading={priority ? "eager" : "lazy"}
+              fetchPriority={priority ? "high" : "low"}
+              decoding="async"
+              draggable={false}
+            />
+          ) : (
+            <span className="video-card__placeholder" aria-hidden="true" />
+          )}
 
-        {mountPreview && (
-          <video
-            key={video.preview}
-            ref={videoRef}
-            className={`video-card__preview ${previewReady ? "is-ready" : ""}`}
-            src={video.preview}
-            muted
-            loop
-            playsInline
-            autoPlay
-            preload="auto"
-            aria-hidden="true"
-            tabIndex={-1}
-            onLoadedData={(event) => {
-              void event.currentTarget.play().catch(() => {
+          {mountPreview && (
+            <video
+              key={video.preview}
+              ref={videoRef}
+              className={`video-card__preview ${previewReady ? "is-ready" : ""}`}
+              src={video.preview}
+              muted
+              loop
+              playsInline
+              autoPlay
+              preload="auto"
+              aria-hidden="true"
+              tabIndex={-1}
+              onLoadedData={(event) => {
+                void event.currentTarget.play().catch(() => {
+                  setPreviewReady(false);
+                });
+              }}
+              onPlaying={() => setPreviewReady(true)}
+              onError={() => {
+                intents.current.clear();
+                setHasIntent(false);
                 setPreviewReady(false);
-              });
-            }}
-            onPlaying={() => setPreviewReady(true)}
-            onError={() => {
-              intents.current.clear();
-              setHasIntent(false);
-              setPreviewReady(false);
-              setPreviewFailed(true);
-            }}
-          />
-        )}
+                setPreviewFailed(true);
+              }}
+            />
+          )}
 
-        <span className="video-card__shade" aria-hidden="true" />
-
-        <span className="video-card__play" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-            <path d="M8 5.4v13.2L18.5 12 8 5.4Z" />
-          </svg>
-        </span>
-
-        <span className="video-card__duration" aria-hidden="true">
-          {video.duration}
-        </span>
-
-        <span className="video-card__category" aria-hidden="true">
-          {video.category}
-        </span>
-      </div>
-
-      <div className="video-card__body">
-        <div className="platform-mark">
-          <span>{platformMark}</span>
+          <span className="video-card__shade" aria-hidden="true" />
+          <span className="video-card__play" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+              <path d="M8 5.4v13.2L18.5 12 8 5.4Z" />
+            </svg>
+          </span>
+          <span className="video-card__duration" aria-hidden="true">{video.duration}</span>
+          <span className="video-card__category" aria-hidden="true">{video.category}</span>
         </div>
 
-        <div className="video-card__copy">
-          <h2 className="video-card__title">{video.title}</h2>
-          <p className="video-card__creator">{video.creator}</p>
-          <p className="video-card__meta">
-            <span>{video.platform}</span>
-            <span aria-hidden="true">·</span>
-            <span>{video.views}</span>
-            <span aria-hidden="true">·</span>
-            <span>{video.age}</span>
-          </p>
+        <div className="video-card__body">
+          <div className="platform-mark"><span>{platformMark}</span></div>
+          <div className="video-card__copy">
+            <h2 className="video-card__title">{video.title}</h2>
+            <p className="video-card__creator">{video.creator}</p>
+            <p className="video-card__meta">
+              <span>{video.platform}</span>
+              <span aria-hidden="true">·</span>
+              <span>{video.views}</span>
+              <span aria-hidden="true">·</span>
+              <span>{video.age}</span>
+            </p>
+          </div>
+          <span className="video-card__more" aria-hidden="true">•••</span>
         </div>
+      </a>
 
-        <span className="video-card__more" aria-hidden="true">•••</span>
-      </div>
-    </a>
+      <button
+        className={`video-card__like ${liked ? "is-liked" : ""}`}
+        type="button"
+        aria-pressed={liked}
+        aria-label={liked ? `Unlike ${video.title}` : `Like ${video.title}`}
+        title={liked ? "Remove from Stars" : "Add to Stars"}
+        onClick={onToggleLike}
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path d="M12 20.3 4.2 12.8A4.8 4.8 0 0 1 11 6l1 1 1-1a4.8 4.8 0 0 1 6.8 6.8L12 20.3Z" />
+        </svg>
+      </button>
+    </article>
   );
 }
