@@ -1,7 +1,8 @@
 .root {
   position: absolute;
   z-index: 12;
-  top: 57px;
+  top: 9px;
+  right: 56px;
   left: 9px;
   display: flex;
   align-items: center;
@@ -10,6 +11,8 @@
 
 .indicator {
   display: inline-flex;
+  flex: 1 1 0;
+  max-width: 120px;
   min-width: 0;
   height: 34px;
   align-items: center;
@@ -194,6 +197,7 @@
 
 @media (max-width: 560px) {
   .indicator {
+    flex: 0 0 32px;
     width: 32px;
     padding: 2px;
   }
@@ -236,7 +240,8 @@
 }
 
 :global(html[data-tv="true"]) .root {
-  top: 78px;
+  top: 9px;
+  right: 66px;
 }
 
 :global(html[data-tv="true"]) .indicatorPortrait {

@@ -997,8 +997,8 @@ button {
 .video-card__top-title {
   position: absolute;
   z-index: 4;
-  top: 10px;
-  right: 54px;
+  top: 54px;
+  right: 11px;
   left: 11px;
   pointer-events: none;
 }
@@ -2439,6 +2439,17 @@ html[data-tv="true"] .grid-nav-hint span {
 
 html[data-tv="true"] .video-card__title {
   font-size: clamp(1.12rem, 1.2vw, 1.5rem);
+}
+
+html[data-tv="true"] .video-card__top-title {
+  top: 66px;
+  right: 12px;
+  left: 12px;
+}
+
+html[data-tv="true"] .video-card__like {
+  width: 46px;
+  height: 46px;
 }
 
 html[data-tv="true"] .video-card__creator,
