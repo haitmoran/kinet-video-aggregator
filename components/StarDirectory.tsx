@@ -40,9 +40,20 @@ type StarDirectoryProps = {
   tvMode: boolean;
   columns: number;
   details: StarCardPreferences;
+  lovedStarSlugs: ReadonlySet<string>;
+  onToggleStarLove: (starSlug: string) => boolean;
+  onExitDown?: () => void;
 };
 
-export function StarDirectory({ entries, tvMode, columns, details }: StarDirectoryProps) {
+export function StarDirectory({
+  entries,
+  tvMode,
+  columns,
+  details,
+  lovedStarSlugs,
+  onToggleStarLove,
+  onExitDown,
+}: StarDirectoryProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const drawerRef = useRef<HTMLElement>(null);
@@ -120,7 +131,14 @@ export function StarDirectory({ entries, tvMode, columns, details }: StarDirecto
     if (key === "ArrowDown") target += activeColumns;
     if (target < 0 && key === "ArrowUp") {
       event.preventDefault();
-      document.querySelector<HTMLElement>(".filter-trigger")?.focus();
+      const previousControl = document.querySelector<HTMLElement>(".filter-trigger")
+        ?? document.querySelector<HTMLElement>(".nav-search input");
+      previousControl?.focus();
+      return;
+    }
+    if (target >= entries.length && key === "ArrowDown" && onExitDown) {
+      event.preventDefault();
+      onExitDown();
       return;
     }
     target = Math.max(0, Math.min(entries.length - 1, target));
@@ -187,6 +205,23 @@ export function StarDirectory({ entries, tvMode, columns, details }: StarDirecto
             aria-labelledby="star-drawer-title"
             onPointerDown={(event) => event.stopPropagation()}
           >
+            <button
+              className={`${styles.drawerLove} ${lovedStarSlugs.has(activeEntry.profile.slug) ? styles.loved : ""}`}
+              type="button"
+              aria-pressed={lovedStarSlugs.has(activeEntry.profile.slug)}
+              aria-label={lovedStarSlugs.has(activeEntry.profile.slug)
+                ? `Remove ${activeEntry.profile.name} from loved stars`
+                : `Love ${activeEntry.profile.name}`}
+              onClick={() => {
+                const changed = onToggleStarLove(activeEntry.profile.slug);
+                if (!changed) closeDrawer(false);
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+                <path d="M12 20.3 4.2 12.8A4.8 4.8 0 0 1 11 6l1 1 1-1a4.8 4.8 0 0 1 6.8 6.8L12 20.3Z" />
+              </svg>
+              <span>{lovedStarSlugs.has(activeEntry.profile.slug) ? "Loved" : "Love"}</span>
+            </button>
             <button
               ref={drawerCloseRef}
               className={styles.drawerClose}

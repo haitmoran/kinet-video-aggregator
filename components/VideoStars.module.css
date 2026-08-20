@@ -109,11 +109,11 @@
   transform-origin: bottom center;
 }
 
-.close {
+.close,
+.love {
   position: absolute;
   z-index: 2;
   top: 14px;
-  right: 14px;
   display: grid;
   width: 34px;
   height: 34px;
@@ -125,11 +125,46 @@
   cursor: pointer;
 }
 
-.close:hover {
+.close {
+  right: 14px;
+}
+
+.love {
+  right: 54px;
+}
+
+.love svg path {
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  transition: fill 140ms ease, transform 140ms ease;
+}
+
+.love:hover svg path {
+  transform: scale(1.08);
+}
+
+.love.loved {
+  border-color: rgb(255 255 255 / 72%);
+  background: var(--accent);
+}
+
+.love.loved svg path {
+  fill: currentColor;
+}
+
+.close:hover,
+.love:hover {
   background: #111827;
 }
 
+.love.loved:hover {
+  background: color-mix(in srgb, var(--accent) 84%, #111827);
+}
+
 .close:focus-visible,
+.love:focus-visible,
 .profileLink:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 3px;
@@ -156,7 +191,7 @@
 
 .dialogCopy {
   min-width: 0;
-  padding: 19px 34px 10px 0;
+  padding: 19px 78px 10px 0;
 }
 
 .prototype {
@@ -261,7 +296,7 @@
   }
 
   .dialogCopy {
-    padding: 14px 30px 8px 0;
+    padding: 14px 72px 8px 0;
   }
 }
 

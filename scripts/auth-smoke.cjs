@@ -55,6 +55,13 @@ async function run() {
   auth.saveLikedVideoIds(signedIn.normalizedUsername, liked);
   assert.deepEqual([...auth.getLikedVideoIds(signedIn.normalizedUsername)], [...liked]);
 
+  const lovedStars = new Set(["aria-sol", "zuri-adebayo"]);
+  auth.saveLovedStarSlugs(signedIn.normalizedUsername, lovedStars);
+  assert.deepEqual(
+    [...auth.getLovedStarSlugs(signedIn.normalizedUsername)],
+    [...lovedStars],
+  );
+
   await auth.changePassword({
     normalizedUsername: signedIn.normalizedUsername,
     currentPassword: "initial-password",

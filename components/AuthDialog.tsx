@@ -182,10 +182,10 @@ export function AuthDialog({
         <p className="auth-dialog__eyebrow">Kinet account</p>
         <h2 id="auth-title">{titles[mode]}</h2>
         <p className="auth-dialog__intro">
-          {mode === "register" && "Save videos and find every like again in your personal collection."}
+          {mode === "register" && "Save videos and stars in one personal collection."}
           {mode === "login" && (isManagerLogin
             ? "One secure sign-in opens your account and private analytics dashboard."
-            : "Sign in to like videos and open your personal collection.")}
+            : "Sign in to love videos and stars, then open your personal collection.")}
           {mode === "reset" && "Use the optional recovery email saved during registration."}
           {mode === "change" && `Update the password for @${currentUser?.username}.`}
         </p>

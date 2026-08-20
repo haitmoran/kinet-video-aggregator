@@ -24,9 +24,11 @@ import {
   type DisplayPreferences,
 } from "@/lib/displayPreferences";
 import {
+  getLovedStarSlugs,
   getLikedVideoIds,
   getSession,
   MANAGER_USERNAME,
+  saveLovedStarSlugs,
   saveLikedVideoIds,
   signOut,
   type SessionUser,
@@ -34,7 +36,7 @@ import {
 import { clearAnalyticsOwnerSession } from "@/lib/analyticsClient";
 
 type Theme = "light" | "dark";
-type MainTab = "Trending" | "Latest" | "Categories" | "Stars" | "Liked";
+type MainTab = "Trending" | "Latest" | "Categories" | "Stars" | "Profile";
 type VideoSortMode = "Featured" | "Newest" | "Most liked" | "Shortest" | "Longest";
 type StarSortMode = "Featured" | "Name A–Z" | "Most appearances" | "Most liked" | "Newest work";
 type DurationFilter = "Any duration" | "Under 3 min" | "3–6 min" | "6–12 min" | "12+ min";
@@ -166,9 +168,11 @@ export function VideoExplorer() {
   const [focusedAction, setFocusedAction] = useState<VideoCardAction>("open");
   const [currentUser, setCurrentUser] = useState<SessionUser | null>(null);
   const [likedVideoIds, setLikedVideoIds] = useState<Set<string>>(new Set());
+  const [lovedStarSlugs, setLovedStarSlugs] = useState<Set<string>>(new Set());
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [pendingLikeId, setPendingLikeId] = useState<string | null>(null);
+  const [pendingStarSlug, setPendingStarSlug] = useState<string | null>(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
 
@@ -186,7 +190,10 @@ export function VideoExplorer() {
 
     const session = getSession();
     setCurrentUser(session);
-    if (session) setLikedVideoIds(getLikedVideoIds(session.normalizedUsername));
+    if (session) {
+      setLikedVideoIds(getLikedVideoIds(session.normalizedUsername));
+      setLovedStarSlugs(getLovedStarSlugs(session.normalizedUsername));
+    }
 
     const startsOnStars = pageParameters.get("tab") === "stars";
     if (startsOnStars) {
@@ -302,7 +309,7 @@ export function VideoExplorer() {
   const filteredVideos = useMemo(() => {
     const matching = videosMatchingFilters.filter((video) => {
       const matchesLiked =
-        activeTab !== "Liked" || Boolean(currentUser && likedVideoIds.has(video.id));
+        activeTab !== "Profile" || Boolean(currentUser && likedVideoIds.has(video.id));
       const haystack = `${video.title} ${video.creator} ${video.platform} ${video.category} ${video.tags.join(" ")} ${video.mood}`.toLowerCase();
       return matchesLiked && (!deferredQuery || haystack.includes(deferredQuery));
     });
@@ -314,8 +321,26 @@ export function VideoExplorer() {
     return matching;
   }, [activeTab, currentUser, deferredQuery, likedVideoIds, videoSort, videosMatchingFilters]);
 
+  const allStarEntries = useMemo(
+    () => starProfiles.flatMap<StarDirectoryEntry>((profile) => {
+      const relatedVideos = videos.filter((video) =>
+        getStarSlugsForVideo(video.id).includes(profile.slug),
+      );
+      if (!relatedVideos.length) return [];
+
+      return [{
+        profile,
+        appearances: relatedVideos.length,
+        totalLikes: relatedVideos.reduce((total, video) => total + video.likeCount, 0),
+        newestYear: Math.max(...relatedVideos.map((video) => video.publishedYear)),
+      }];
+    }),
+    [],
+  );
+
   const filteredStars = useMemo(() => {
-    const entries = starProfiles.flatMap<StarDirectoryEntry>((profile) => {
+    const entries = allStarEntries.filter((entry) => {
+      const { profile, appearances } = entry;
       const relatedVideos = videos.filter((video) =>
         getStarSlugsForVideo(video.id).includes(profile.slug),
       );
@@ -326,8 +351,8 @@ export function VideoExplorer() {
         selectedStarSpecialties.some((specialty) => profile.specialties.includes(specialty));
       const matchesAppearances =
         starAppearanceFilter === "Any appearances" ||
-        (starAppearanceFilter === "40+ stories" && relatedVideos.length >= 40) ||
-        (starAppearanceFilter === "Under 40 stories" && relatedVideos.length < 40);
+        (starAppearanceFilter === "40+ stories" && appearances >= 40) ||
+        (starAppearanceFilter === "Under 40 stories" && appearances < 40);
       const profileText = `${profile.name} ${profile.role} ${profile.location} ${profile.specialties.join(" ")}`.toLowerCase();
       const matchesSearch =
         !deferredQuery ||
@@ -335,21 +360,7 @@ export function VideoExplorer() {
         relatedVideos.some((video) =>
           `${video.title} ${video.creator} ${video.tags.join(" ")}`.toLowerCase().includes(deferredQuery),
         );
-      if (
-        !relatedVideos.length ||
-        !matchesSearch ||
-        !matchesRole ||
-        !matchesRegion ||
-        !matchesSpecialty ||
-        !matchesAppearances
-      ) return [];
-
-      return [{
-        profile,
-        appearances: relatedVideos.length,
-        totalLikes: relatedVideos.reduce((total, video) => total + video.likeCount, 0),
-        newestYear: Math.max(...relatedVideos.map((video) => video.publishedYear)),
-      }];
+      return matchesSearch && matchesRole && matchesRegion && matchesSpecialty && matchesAppearances;
     });
 
     if (starSort === "Name A–Z") return entries.sort((a, b) => a.profile.name.localeCompare(b.profile.name));
@@ -357,7 +368,22 @@ export function VideoExplorer() {
     if (starSort === "Most liked") return entries.sort((a, b) => b.totalLikes - a.totalLikes);
     if (starSort === "Newest work") return entries.sort((a, b) => b.newestYear - a.newestYear || b.totalLikes - a.totalLikes);
     return entries;
-  }, [deferredQuery, selectedStarRegions, selectedStarRoles, selectedStarSpecialties, starAppearanceFilter, starSort]);
+  }, [allStarEntries, deferredQuery, selectedStarRegions, selectedStarRoles, selectedStarSpecialties, starAppearanceFilter, starSort]);
+
+  const lovedStarEntries = useMemo(
+    () => allStarEntries.filter(({ profile }) => {
+      if (!lovedStarSlugs.has(profile.slug)) return false;
+      if (!deferredQuery) return true;
+      const relatedVideos = videos.filter((video) =>
+        getStarSlugsForVideo(video.id).includes(profile.slug),
+      );
+      const profileText = `${profile.name} ${profile.role} ${profile.location} ${profile.specialties.join(" ")}`.toLowerCase();
+      return profileText.includes(deferredQuery) || relatedVideos.some((video) =>
+        `${video.title} ${video.creator} ${video.tags.join(" ")}`.toLowerCase().includes(deferredQuery),
+      );
+    }),
+    [allStarEntries, deferredQuery, lovedStarSlugs],
+  );
 
   const visibleVideos = useMemo(
     () => filteredVideos.slice(0, visibleCount),
@@ -423,9 +449,13 @@ export function VideoExplorer() {
       setFocusedIndex(0);
       setFocusedAction("open");
       window.setTimeout(() => {
-        gridRef.current
-          ?.querySelector<HTMLAnchorElement>('[data-video-index="0"][data-card-action="open"]')
-          ?.focus();
+        if (activeTab === "Stars" || (activeTab === "Profile" && lovedStarEntries.length > 0)) {
+          catalogRef.current?.querySelector<HTMLElement>('[data-star-card-index="0"]')?.focus();
+        } else {
+          gridRef.current
+            ?.querySelector<HTMLAnchorElement>('[data-video-index="0"][data-card-action="open"]')
+            ?.focus();
+        }
       }, 0);
     }
   };
@@ -496,9 +526,14 @@ export function VideoExplorer() {
     catalogRef.current?.scrollIntoView({ block: "start" });
   };
 
-  const openAuth = (mode: AuthMode, pendingVideoId: string | null = null) => {
+  const openAuth = (
+    mode: AuthMode,
+    pendingVideoId: string | null = null,
+    nextPendingStarSlug: string | null = null,
+  ) => {
     setAuthMode(mode);
     setPendingLikeId(pendingVideoId);
+    setPendingStarSlug(nextPendingStarSlug);
     setAuthOpen(true);
     setAccountMenuOpen(false);
   };
@@ -506,16 +541,23 @@ export function VideoExplorer() {
   const closeAuth = useCallback(() => {
     setAuthOpen(false);
     setPendingLikeId(null);
+    setPendingStarSlug(null);
   }, []);
 
   const handleAuthenticated = (user: SessionUser) => {
     const nextLikes = getLikedVideoIds(user.normalizedUsername);
+    const nextLovedStars = getLovedStarSlugs(user.normalizedUsername);
     if (pendingLikeId) {
       nextLikes.add(pendingLikeId);
       saveLikedVideoIds(user.normalizedUsername, nextLikes);
     }
+    if (pendingStarSlug) {
+      nextLovedStars.add(pendingStarSlug);
+      saveLovedStarSlugs(user.normalizedUsername, nextLovedStars);
+    }
     setCurrentUser(user);
     setLikedVideoIds(new Set(nextLikes));
+    setLovedStarSlugs(new Set(nextLovedStars));
 
     if (
       user.normalizedUsername === MANAGER_USERNAME &&
@@ -538,16 +580,32 @@ export function VideoExplorer() {
     setLikedVideoIds(nextLikes);
   };
 
+  const toggleStarLove = (starSlug: string): boolean => {
+    if (!currentUser) {
+      openAuth("login", null, starSlug);
+      return false;
+    }
+
+    const nextLovedStars = new Set(lovedStarSlugs);
+    if (nextLovedStars.has(starSlug)) nextLovedStars.delete(starSlug);
+    else nextLovedStars.add(starSlug);
+    saveLovedStarSlugs(currentUser.normalizedUsername, nextLovedStars);
+    setLovedStarSlugs(nextLovedStars);
+    return true;
+  };
+
   const handleSignOut = () => {
     signOut();
     clearAnalyticsOwnerSession();
     setCurrentUser(null);
     setLikedVideoIds(new Set());
+    setLovedStarSlugs(new Set());
     setAccountMenuOpen(false);
   };
 
-  const openLikedVideos = () => {
-    setActiveTab("Liked");
+  const openPersonalProfile = () => {
+    setActiveTab("Profile");
+    setQuery("");
     resetVideoFilters();
     setVideoSort("Featured");
     setAccountMenuOpen(false);
@@ -618,8 +676,13 @@ export function VideoExplorer() {
     }
 
     if (targetIndex < 0 && normalizedKey === "ArrowUp") {
-      filterButtonRef.current?.focus();
-      filterButtonRef.current?.scrollIntoView({ block: "center", inline: "nearest" });
+      const previousControl = activeTab === "Profile" && lovedStarEntries.length > 0
+        ? catalogRef.current?.querySelector<HTMLElement>(
+            `[data-star-card-index="${lovedStarEntries.length - 1}"]`,
+          )
+        : filterButtonRef.current ?? searchRef.current;
+      previousControl?.focus();
+      previousControl?.scrollIntoView({ block: "center", inline: "nearest" });
       return;
     }
     if (targetIndex < 0 || targetIndex >= filteredVideos.length) return;
@@ -659,7 +722,12 @@ export function VideoExplorer() {
       const eventTarget = event.target as HTMLElement | null;
       if (eventTarget?.closest('input, textarea, select, [contenteditable="true"]')) return;
       if (filterOpen || authOpen) return;
-      if (activeTab === "Stars" ? filteredStars.length === 0 : visibleVideos.length === 0) return;
+      const hasNavigableResults = activeTab === "Stars"
+        ? filteredStars.length > 0
+        : activeTab === "Profile"
+          ? lovedStarEntries.length > 0 || visibleVideos.length > 0
+          : visibleVideos.length > 0;
+      if (!hasNavigableResults) return;
 
       const activeElement = document.activeElement as HTMLElement | null;
       const toolbar = activeElement?.closest<HTMLElement>(".topbar, .catalog__header");
@@ -687,7 +755,7 @@ export function VideoExplorer() {
       }
 
       event.preventDefault();
-      if (activeTab === "Stars") {
+      if (activeTab === "Stars" || (activeTab === "Profile" && lovedStarEntries.length > 0)) {
         const firstStar = catalogRef.current?.querySelector<HTMLElement>(
           '[data-star-card-index="0"]',
         );
@@ -710,7 +778,7 @@ export function VideoExplorer() {
 
     window.addEventListener("keydown", enterGridWithArrows);
     return () => window.removeEventListener("keydown", enterGridWithArrows);
-  }, [activeTab, authOpen, displayPreferences.metadata.stars, filterOpen, filteredStars.length, focusedAction, focusedIndex, visibleVideos.length]);
+  }, [activeTab, authOpen, displayPreferences.metadata.stars, filterOpen, filteredStars.length, focusedAction, focusedIndex, lovedStarEntries.length, visibleVideos.length]);
 
   return (
     <div className="site-frame">
@@ -742,7 +810,11 @@ export function VideoExplorer() {
             type="search"
             value={query}
             onChange={(event: ChangeEvent<HTMLInputElement>) => setQuery(event.target.value)}
-            placeholder={activeTab === "Stars" ? "Search stars, roles, skills" : "Search stories, creators, topics"}
+            placeholder={activeTab === "Stars"
+              ? "Search stars, roles, skills"
+              : activeTab === "Profile"
+                ? "Search your saved collection"
+                : "Search stories, creators, topics"}
           />
           <kbd>/</kbd>
         </label>
@@ -787,14 +859,14 @@ export function VideoExplorer() {
                 <div className="account-menu" role="menu">
                   <div className="account-menu__identity">
                     <strong>@{currentUser.username}</strong>
-                    <span>{likedVideoIds.size} liked videos</span>
+                    <span>{likedVideoIds.size} videos · {lovedStarSlugs.size} stars</span>
                   </div>
                   <button
                     type="button"
                     role="menuitem"
-                    onClick={openLikedVideos}
+                    onClick={openPersonalProfile}
                   >
-                    Liked videos
+                    Personal profile
                   </button>
                   {!isManager && (
                     <button type="button" role="menuitem" onClick={() => openAuth("change")}>Change password</button>
@@ -817,54 +889,67 @@ export function VideoExplorer() {
           ref={catalogRef}
           className="catalog"
           id="catalog"
-          aria-label={activeTab === "Stars" ? "Star directory" : "Video catalog"}
+          aria-label={activeTab === "Stars"
+            ? "Star directory"
+            : activeTab === "Profile"
+              ? "Personal profile"
+              : "Video catalog"}
         >
           <div className="catalog__header">
             <div className="catalog__left-tools">
-              <button
-                ref={filterButtonRef}
-                className={`filter-trigger ${activeFilterCount > 0 ? "has-filters" : ""}`}
-                type="button"
-                aria-expanded={filterOpen}
-                aria-controls="filter-drawer"
-                onClick={() => setFilterOpen(true)}
-              >
-                <FilterIcon />
-                <span>Filters</span>
-                {activeFilterCount > 0 && <span className="filter-trigger__count">{activeFilterCount}</span>}
-              </button>
-              <PreferencesPopover
-                view={activeTab === "Stars" ? "stars" : "videos"}
-                preferences={displayPreferences}
-                onChange={updateDisplayPreferences}
-              />
-              {activeTab === "Liked" && <span className="catalog-view-label">Liked videos</span>}
+              {activeTab === "Profile" ? (
+                <span className="catalog-view-label">Personal profile</span>
+              ) : (
+                <>
+                  <button
+                    ref={filterButtonRef}
+                    className={`filter-trigger ${activeFilterCount > 0 ? "has-filters" : ""}`}
+                    type="button"
+                    aria-expanded={filterOpen}
+                    aria-controls="filter-drawer"
+                    onClick={() => setFilterOpen(true)}
+                  >
+                    <FilterIcon />
+                    <span>Filters</span>
+                    {activeFilterCount > 0 && <span className="filter-trigger__count">{activeFilterCount}</span>}
+                  </button>
+                  <PreferencesPopover
+                    view={activeTab === "Stars" ? "stars" : "videos"}
+                    preferences={displayPreferences}
+                    onChange={updateDisplayPreferences}
+                  />
+                </>
+              )}
             </div>
             <div className="catalog__tools">
               <span className="result-count">
                 {activeTab === "Stars"
                   ? `${filteredStars.length} stars`
+                  : activeTab === "Profile"
+                    ? `${likedVideoIds.size} videos · ${lovedStarSlugs.size} stars`
                   : `${visibleVideos.length} of ${filteredVideos.length} stories`}
               </span>
-              <label className="sort-control">
-                <span className="sort-control__label">
-                  Sort by
-                </span>
-                <select
-                  value={activeTab === "Stars" ? starSort : videoSort}
-                  aria-label={activeTab === "Stars" ? "Sort stars by" : "Sort videos by"}
-                  onChange={(event) => activeTab === "Stars"
-                    ? setStarSort(event.target.value as StarSortMode)
-                    : setVideoSort(event.target.value as VideoSortMode)}
-                >
-                  {(activeTab === "Stars" ? starSortModes : videoSortModes).map((sortMode) => (
-                    <option key={sortMode}>{sortMode}</option>
-                  ))}
-                </select>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
-                  <path d="m8 10 4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </label>
+              {activeTab !== "Profile" && (
+                <label className="sort-control">
+                  <span className="sort-control__label">
+                    Sort by
+                  </span>
+                  <select
+                    value={activeTab === "Stars" ? starSort : videoSort}
+                    aria-label={activeTab === "Stars" ? "Sort stars by" : "Sort videos by"}
+                    onChange={(event) => activeTab === "Stars"
+                      ? setStarSort(event.target.value as StarSortMode)
+                      : setVideoSort(event.target.value as VideoSortMode)}
+                  >
+                    {(activeTab === "Stars" ? starSortModes : videoSortModes).map((sortMode) => (
+                      <option key={sortMode}>{sortMode}</option>
+                    ))}
+                  </select>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
+                    <path d="m8 10 4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </label>
+              )}
             </div>
           </div>
 
@@ -875,6 +960,8 @@ export function VideoExplorer() {
                 tvMode={tvMode}
                 columns={displayPreferences.starColumns}
                 details={displayPreferences.starMetadata}
+                lovedStarSlugs={lovedStarSlugs}
+                onToggleStarLove={toggleStarLove}
               />
             ) : (
               <div className="empty-state">
@@ -884,7 +971,7 @@ export function VideoExplorer() {
                 <button type="button" onClick={() => { setQuery(""); resetStarFilters(); }}>Clear filters</button>
               </div>
             )
-          ) : activeTab === "Liked" && !currentUser ? (
+          ) : activeTab === "Profile" && !currentUser ? (
             <div className="auth-gate">
               <span className="auth-gate__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
@@ -892,101 +979,188 @@ export function VideoExplorer() {
                 </svg>
               </span>
               <h2>Keep every favorite in one place</h2>
-              <p>Register or sign in to like videos and see them here whenever you return.</p>
+              <p>Register or sign in to keep loved videos and stars together in your profile.</p>
               <div className="auth-gate__actions">
                 <button type="button" onClick={() => openAuth("register")}>Register</button>
                 <button type="button" onClick={() => openAuth("login")}>Sign in</button>
               </div>
             </div>
-          ) : visibleVideos.length > 0 ? (
+          ) : visibleVideos.length > 0 || activeTab === "Profile" ? (
             <>
-              <p className="grid-nav-hint" id="grid-navigation-help">
-                <span aria-hidden="true">D-pad</span>
-                Use arrow keys to move. Each card opens by default; move right for its heart
-                {displayPreferences.metadata.stars ? " or left for its featured stars" : ""}.
-                {" "}Press Enter or OK to activate.
-              </p>
-              <div
-                ref={gridRef}
-                className="video-grid"
-                role="list"
-                aria-label="Video results"
-                aria-describedby="grid-navigation-help"
-                onFocusCapture={(event) => {
-                  const control = (event.target as HTMLElement).closest<HTMLElement>(
-                    "[data-video-index][data-card-action]",
-                  );
-                  if (!control) return;
-                  setFocusedIndex(Number(control.dataset.videoIndex));
-                  setFocusedAction(control.dataset.cardAction as VideoCardAction);
-                }}
-              >
-                {visibleVideos.map((video, index) => (
-                  <VideoCard
-                    key={video.id}
-                    video={video}
-                    index={index}
-                    liked={likedVideoIds.has(video.id)}
-                    onToggleLike={() => toggleLike(video.id)}
-                    metadata={displayPreferences.metadata}
-                    priority={index < 6}
-                    tabIndex={
-                      tvMode && !(focusedIndex === index && focusedAction === "open")
-                        ? -1
-                        : 0
-                    }
-                    likeTabIndex={
-                      tvMode && !(focusedIndex === index && focusedAction === "like")
-                        ? -1
-                        : 0
-                    }
-                    starTabIndexes={[
-                      tvMode && !(focusedIndex === index && focusedAction === "star-0") ? -1 : 0,
-                      tvMode && !(focusedIndex === index && focusedAction === "star-1") ? -1 : 0,
-                    ]}
-                    onKeyDown={(event) => handleGridKeyDown(event, index, "open")}
-                    onLikeKeyDown={(event) => handleGridKeyDown(event, index, "like")}
-                    onStarKeyDown={(event) =>
-                      handleGridKeyDown(
-                        event,
-                        index,
-                        event.currentTarget.dataset.cardAction as VideoCardAction,
-                      )
-                    }
-                  />
-                ))}
-              </div>
+              {activeTab === "Profile" && currentUser && (
+                <div className="profile-collection">
+                  <section className="profile-hero" aria-labelledby="profile-title">
+                    <span className="profile-hero__avatar" aria-hidden="true">
+                      {currentUser.username.slice(0, 2).toUpperCase()}
+                    </span>
+                    <div className="profile-hero__copy">
+                      <p>Your personal collection</p>
+                      <h1 id="profile-title">@{currentUser.username}</h1>
+                    </div>
+                    <div className="profile-hero__stats" aria-label="Collection totals">
+                      <span><strong>{likedVideoIds.size}</strong> loved videos</span>
+                      <span><strong>{lovedStarSlugs.size}</strong> loved stars</span>
+                    </div>
+                  </section>
 
-              <div ref={loadMoreRef} className="auto-loader" aria-live="polite">
-                {hasMore ? (
-                  <>
-                    <span className="auto-loader__spinner" aria-hidden="true" />
-                    <span>More stories load automatically as you scroll.</span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setVisibleCount((count) =>
-                          Math.min(count + PAGE_SIZE, filteredVideos.length),
-                        )
-                      }
-                    >
-                      Load more
-                    </button>
-                  </>
-                ) : (
-                  <span>You’ve reached all {filteredVideos.length} stories.</span>
-                )}
-              </div>
+                  <section className="profile-section" aria-labelledby="loved-stars-title">
+                    <header className="profile-section__header">
+                      <div>
+                        <p>People to return to</p>
+                        <h2 id="loved-stars-title">Loved stars</h2>
+                      </div>
+                      <span>{lovedStarSlugs.size}</span>
+                    </header>
+                    {lovedStarEntries.length > 0 ? (
+                      <StarDirectory
+                        entries={lovedStarEntries}
+                        tvMode={tvMode}
+                        columns={displayPreferences.starColumns}
+                        details={displayPreferences.starMetadata}
+                        lovedStarSlugs={lovedStarSlugs}
+                        onToggleStarLove={toggleStarLove}
+                        onExitDown={() => {
+                          const firstVideo = gridRef.current?.querySelector<HTMLElement>(
+                            '[data-video-index="0"][data-card-action="open"]',
+                          );
+                          firstVideo?.focus();
+                          firstVideo?.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+                        }}
+                      />
+                    ) : (
+                      <div className="profile-empty">
+                        <p>{lovedStarSlugs.size > 0
+                          ? "No loved stars match this search."
+                          : "Love a star from a video preview or the Stars directory and they’ll appear here."}</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (lovedStarSlugs.size > 0) setQuery("");
+                            else selectTab("Stars");
+                          }}
+                        >
+                          {lovedStarSlugs.size > 0 ? "Clear search" : "Browse stars"}
+                        </button>
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="profile-section profile-section--videos" aria-labelledby="loved-videos-title">
+                    <header className="profile-section__header">
+                      <div>
+                        <p>Your saved watchlist</p>
+                        <h2 id="loved-videos-title">Loved videos</h2>
+                      </div>
+                      <span>{likedVideoIds.size}</span>
+                    </header>
+                  </section>
+                </div>
+              )}
+
+              {visibleVideos.length > 0 ? (
+                <>
+                  <p className="grid-nav-hint" id="grid-navigation-help">
+                    <span aria-hidden="true">D-pad</span>
+                    Use arrow keys to move. Each card opens by default; move right for its heart
+                    {displayPreferences.metadata.stars ? " or left for its featured stars" : ""}.
+                    {" "}Press Enter or OK to activate.
+                  </p>
+                  <div
+                    ref={gridRef}
+                    className="video-grid"
+                    role="list"
+                    aria-label={activeTab === "Profile" ? "Loved videos" : "Video results"}
+                    aria-describedby="grid-navigation-help"
+                    onFocusCapture={(event) => {
+                      const control = (event.target as HTMLElement).closest<HTMLElement>(
+                        "[data-video-index][data-card-action]",
+                      );
+                      if (!control) return;
+                      setFocusedIndex(Number(control.dataset.videoIndex));
+                      setFocusedAction(control.dataset.cardAction as VideoCardAction);
+                    }}
+                  >
+                    {visibleVideos.map((video, index) => (
+                      <VideoCard
+                        key={video.id}
+                        video={video}
+                        index={index}
+                        liked={likedVideoIds.has(video.id)}
+                        onToggleLike={() => toggleLike(video.id)}
+                        lovedStarSlugs={lovedStarSlugs}
+                        onToggleStarLove={toggleStarLove}
+                        metadata={displayPreferences.metadata}
+                        priority={index < 6}
+                        tabIndex={
+                          tvMode && !(focusedIndex === index && focusedAction === "open")
+                            ? -1
+                            : 0
+                        }
+                        likeTabIndex={
+                          tvMode && !(focusedIndex === index && focusedAction === "like")
+                            ? -1
+                            : 0
+                        }
+                        starTabIndexes={[
+                          tvMode && !(focusedIndex === index && focusedAction === "star-0") ? -1 : 0,
+                          tvMode && !(focusedIndex === index && focusedAction === "star-1") ? -1 : 0,
+                        ]}
+                        onKeyDown={(event) => handleGridKeyDown(event, index, "open")}
+                        onLikeKeyDown={(event) => handleGridKeyDown(event, index, "like")}
+                        onStarKeyDown={(event) =>
+                          handleGridKeyDown(
+                            event,
+                            index,
+                            event.currentTarget.dataset.cardAction as VideoCardAction,
+                          )
+                        }
+                      />
+                    ))}
+                  </div>
+
+                  <div ref={loadMoreRef} className="auto-loader" aria-live="polite">
+                    {hasMore ? (
+                      <>
+                        <span className="auto-loader__spinner" aria-hidden="true" />
+                        <span>More stories load automatically as you scroll.</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setVisibleCount((count) =>
+                              Math.min(count + PAGE_SIZE, filteredVideos.length),
+                            )
+                          }
+                        >
+                          Load more
+                        </button>
+                      </>
+                    ) : (
+                      <span>You’ve reached all {filteredVideos.length} stories.</span>
+                    )}
+                  </div>
+                </>
+              ) : activeTab === "Profile" ? (
+                <div className="profile-empty profile-empty--videos">
+                  <p>{likedVideoIds.size > 0
+                    ? "No loved videos match this search."
+                    : "Use the heart on any video and it’ll be saved to this profile."}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (likedVideoIds.size > 0) setQuery("");
+                      else selectTab("Trending");
+                    }}
+                  >
+                    {likedVideoIds.size > 0 ? "Clear search" : "Explore videos"}
+                  </button>
+                </div>
+              ) : null}
             </>
           ) : (
             <div className="empty-state">
               <span className="empty-state__icon"><SearchIcon /></span>
-              <h2>{activeTab === "Liked" ? "No liked videos yet" : "No stories found"}</h2>
-              <p>
-                {activeTab === "Liked"
-                  ? "Tap the heart on any video to save it here."
-                  : "Try a broader search or choose another category."}
-              </p>
+              <h2>No stories found</h2>
+              <p>Try a broader search or choose another category.</p>
               <button
                 type="button"
                 onClick={() => {
@@ -996,7 +1170,7 @@ export function VideoExplorer() {
                   setVideoSort("Featured");
                 }}
               >
-                {activeTab === "Liked" ? "Explore videos" : "Clear filters"}
+                Clear filters
               </button>
             </div>
           )}

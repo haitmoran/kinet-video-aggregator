@@ -187,11 +187,58 @@
   cursor: pointer;
 }
 
+.drawerLove {
+  position: absolute;
+  z-index: 3;
+  top: 26px;
+  right: 78px;
+  display: inline-flex;
+  height: 40px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgb(255 255 255 / 42%);
+  border-radius: 999px;
+  background: rgb(17 24 39 / 66%);
+  color: #fff;
+  padding: 0 13px;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 780;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.drawerLove svg path {
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+
+.drawerLove.loved {
+  border-color: rgb(255 255 255 / 72%);
+  background: var(--accent);
+}
+
+.drawerLove.loved svg path {
+  fill: currentColor;
+}
+
 .drawerClose:hover {
   background: #111827;
 }
 
+.drawerLove:hover {
+  background: #111827;
+}
+
+.drawerLove.loved:hover {
+  background: color-mix(in srgb, var(--accent) 84%, #111827);
+}
+
 .drawerClose:focus-visible,
+.drawerLove:focus-visible,
 .drawerVideo:focus-visible,
 .showAllVideos:focus-visible {
   outline: 3px solid var(--focus);

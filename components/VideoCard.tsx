@@ -75,6 +75,8 @@ type VideoCardProps = {
   index: number;
   liked: boolean;
   onToggleLike: () => void;
+  lovedStarSlugs: ReadonlySet<string>;
+  onToggleStarLove: (starSlug: string) => boolean;
   metadata: VideoMetadataPreferences;
   priority?: boolean;
   tabIndex?: number;
@@ -90,6 +92,8 @@ export function VideoCard({
   index,
   liked,
   onToggleLike,
+  lovedStarSlugs,
+  onToggleStarLove,
   metadata,
   priority = false,
   tabIndex = 0,
@@ -350,6 +354,8 @@ export function VideoCard({
         <VideoStars
           videoId={video.id}
           videoTitle={video.title}
+          lovedStarSlugs={lovedStarSlugs}
+          onToggleStarLove={onToggleStarLove}
           videoIndex={index}
           tabIndexes={starTabIndexes}
           onStarKeyDown={onStarKeyDown}
@@ -362,8 +368,8 @@ export function VideoCard({
         aria-pressed={liked}
         aria-label={liked ? `Unlike ${video.title}` : `Like ${video.title}`}
         aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Enter"
-        data-focus-label={liked ? "Remove star" : "Add star"}
-        title={liked ? "Remove from Stars" : "Add to Stars"}
+        data-focus-label={liked ? "Remove love" : "Love video"}
+        title={liked ? "Remove from loved videos" : "Love this video"}
         tabIndex={likeTabIndex}
         data-video-index={index}
         data-card-action="like"

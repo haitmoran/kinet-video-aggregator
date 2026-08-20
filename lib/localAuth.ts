@@ -17,6 +17,7 @@ type StoredUser = {
 const USERS_KEY = "kinet-users-v1";
 const SESSION_KEY = "kinet-session-v1";
 const LIKES_PREFIX = "kinet-likes-v1:";
+const LOVED_STARS_PREFIX = "kinet-loved-stars-v1:";
 const PBKDF2_ITERATIONS = 180_000;
 export const MANAGER_USERNAME = "moran";
 
@@ -297,5 +298,26 @@ export function saveLikedVideoIds(
   window.localStorage.setItem(
     `${LIKES_PREFIX}${normalizedUsername}`,
     JSON.stringify([...videoIds]),
+  );
+}
+
+export function getLovedStarSlugs(normalizedUsername: string): Set<string> {
+  try {
+    const raw = window.localStorage.getItem(
+      `${LOVED_STARS_PREFIX}${normalizedUsername}`,
+    );
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function saveLovedStarSlugs(
+  normalizedUsername: string,
+  starSlugs: Set<string>,
+): void {
+  window.localStorage.setItem(
+    `${LOVED_STARS_PREFIX}${normalizedUsername}`,
+    JSON.stringify([...starSlugs]),
   );
 }
