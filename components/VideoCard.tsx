@@ -309,9 +309,11 @@ export function VideoCard({
           )}
 
           <span className="video-card__shade" aria-hidden="true" />
-          <div className="video-card__top-title">
-            <h2 className="video-card__title">{video.title}</h2>
-          </div>
+          {metadata.title && (
+            <div className="video-card__top-title">
+              <h2 className="video-card__title">{video.title}</h2>
+            </div>
+          )}
           <span className="video-card__play" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
               <path d="M8 5.4v13.2L18.5 12 8 5.4Z" />
@@ -336,13 +338,15 @@ export function VideoCard({
         )}
       </a>
 
-      <VideoStars
-        videoId={video.id}
-        videoTitle={video.title}
-        videoIndex={index}
-        tabIndexes={starTabIndexes}
-        onStarKeyDown={onStarKeyDown}
-      />
+      {metadata.stars && (
+        <VideoStars
+          videoId={video.id}
+          videoTitle={video.title}
+          videoIndex={index}
+          tabIndexes={starTabIndexes}
+          onStarKeyDown={onStarKeyDown}
+        />
+      )}
 
       <button
         className={`video-card__like ${liked ? "is-liked" : ""}`}

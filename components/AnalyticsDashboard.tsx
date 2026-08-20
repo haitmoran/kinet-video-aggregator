@@ -1,7 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { ANALYTICS_API_URL, OWNER_SESSION_KEY } from "@/lib/analyticsClient";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ANALYTICS_API_URL,
+  clearAnalyticsOwnerSession,
+  OWNER_SESSION_KEY,
+} from "@/lib/analyticsClient";
+import { getSession, MANAGER_USERNAME, signOut as signOutAccount } from "@/lib/localAuth";
 
 type RankedItem = {
   label: string;
@@ -85,24 +90,26 @@ function RankedList({ title, items, emptyText }: { title: string; items: RankedI
 
 export function AnalyticsDashboard() {
   const [ready, setReady] = useState(false);
+  const [managerSession, setManagerSession] = useState(false);
   const [token, setToken] = useState("");
-  const [password, setPassword] = useState("");
   const [days, setDays] = useState(30);
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const username = "moran";
-
   useEffect(() => {
-    setToken(window.sessionStorage.getItem(OWNER_SESSION_KEY) ?? "");
+    const account = getSession();
+    const isManager = account?.normalizedUsername === MANAGER_USERNAME;
+    setManagerSession(isManager);
+    setToken(isManager ? window.sessionStorage.getItem(OWNER_SESSION_KEY) ?? "" : "");
     setReady(true);
   }, []);
 
-  const signOut = useCallback(() => {
-    window.sessionStorage.removeItem(OWNER_SESSION_KEY);
+  const clearManagerSession = useCallback(() => {
+    clearAnalyticsOwnerSession();
+    signOutAccount();
+    setManagerSession(false);
     setToken("");
     setSummary(null);
-    setPassword("");
   }, []);
 
   const loadSummary = useCallback(async () => {
@@ -118,8 +125,8 @@ export function AnalyticsDashboard() {
       });
 
       if (response.status === 401) {
-        signOut();
-        throw new Error("Your private session expired. Sign in again.");
+        clearManagerSession();
+        throw new Error("Your manager session expired. Sign in again from Kinet.");
       }
       if (!response.ok) throw new Error("Unable to load analytics right now.");
       setSummary((await response.json()) as AnalyticsSummary);
@@ -128,42 +135,11 @@ export function AnalyticsDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [days, signOut, token]);
+  }, [clearManagerSession, days, token]);
 
   useEffect(() => {
     if (ready && token) void loadSummary();
   }, [loadSummary, ready, token]);
-
-  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!ANALYTICS_API_URL) return;
-
-    setLoading(true);
-    setError("");
-    try {
-      const response = await fetch(`${ANALYTICS_API_URL}/v1/admin/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-        credentials: "omit",
-      });
-      const result = (await response.json().catch(() => ({}))) as {
-        token?: string;
-        message?: string;
-      };
-      if (!response.ok || !result.token) {
-        throw new Error(result.message ?? "Incorrect owner credentials.");
-      }
-
-      window.sessionStorage.setItem(OWNER_SESSION_KEY, result.token);
-      setToken(result.token);
-      setPassword("");
-    } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Unable to sign in.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const peakViews = useMemo(
     () => Math.max(1, ...(summary?.trend.map((point) => point.views) ?? [1])),
@@ -198,7 +174,7 @@ export function AnalyticsDashboard() {
           <p>The private dashboard UI is installed, but its Cloudflare Worker has not been connected yet.</p>
           <a href="../">Return to the video feed</a>
         </section>
-      ) : !token ? (
+      ) : !managerSession ? (
         <section className="analytics-login">
           <span className="analytics-login__lock" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
@@ -207,35 +183,22 @@ export function AnalyticsDashboard() {
             </svg>
           </span>
           <p className="analytics-eyebrow">Private analytics</p>
-          <h1>Owner sign in</h1>
-          <p>Traffic data is encrypted in transit and never exposed in the public site bundle.</p>
-          <form onSubmit={handleLogin}>
-            <label>
-              <span>Owner username</span>
-              <input
-                type="text"
-                value={username}
-                autoComplete="username"
-                readOnly
-                required
-                autoFocus
-              />
-            </label>
-            <label>
-              <span>Password</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete="current-password"
-                minLength={12}
-                required
-              />
-            </label>
-            {error && <p className="analytics-error" role="alert">{error}</p>}
-            <button type="submit" disabled={loading}>{loading ? "Signing in…" : "Open dashboard"}</button>
-          </form>
-          <a className="analytics-back-link" href="../">← Back to Kinet</a>
+          <h1>Manager access only</h1>
+          <p>Sign in as <strong>@moran</strong> on Kinet. Your manager session will open analytics automatically.</p>
+          <a href="../?managerLogin=1">Sign in on Kinet</a>
+        </section>
+      ) : !token ? (
+        <section className="analytics-login">
+          <span className="analytics-login__lock" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+              <rect x="4" y="10" width="16" height="11" rx="2.5" stroke="currentColor" strokeWidth="1.7" />
+              <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+            </svg>
+          </span>
+          <p className="analytics-eyebrow">One-time migration</p>
+          <h1>Reconnect your manager session</h1>
+          <p>This session was created before unified manager sign-in. Sign in once more on Kinet; analytics will then open directly.</p>
+          <a href="../?managerLogin=1">Reconnect as moran</a>
         </section>
       ) : (
         <div className="analytics-dashboard">
@@ -255,7 +218,16 @@ export function AnalyticsDashboard() {
                 </select>
               </label>
               <button type="button" onClick={() => void loadSummary()} disabled={loading}>Refresh</button>
-              <button type="button" className="analytics-sign-out" onClick={signOut}>Sign out</button>
+              <button
+                type="button"
+                className="analytics-sign-out"
+                onClick={() => {
+                  clearManagerSession();
+                  window.location.assign("../");
+                }}
+              >
+                Sign out
+              </button>
             </div>
           </div>
 

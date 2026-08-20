@@ -6,6 +6,40 @@ const VISITOR_KEY = "kinet-analytics-visitor-v1";
 const SESSION_KEY = "kinet-analytics-session-v1";
 export const OWNER_SESSION_KEY = "kinet-owner-analytics-session-v1";
 
+export async function authenticateAnalyticsOwner(
+  username: string,
+  password: string,
+): Promise<string> {
+  if (!ANALYTICS_API_URL) {
+    throw new Error("Private analytics is not configured.");
+  }
+
+  const response = await fetch(`${ANALYTICS_API_URL}/v1/admin/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+    credentials: "omit",
+  });
+  const result = (await response.json().catch(() => ({}))) as {
+    token?: string;
+    message?: string;
+  };
+
+  if (!response.ok || !result.token) {
+    throw new Error(result.message ?? "Incorrect manager credentials.");
+  }
+
+  return result.token;
+}
+
+export function saveAnalyticsOwnerSession(token: string): void {
+  window.sessionStorage.setItem(OWNER_SESSION_KEY, token);
+}
+
+export function clearAnalyticsOwnerSession(): void {
+  window.sessionStorage.removeItem(OWNER_SESSION_KEY);
+}
+
 type AnalyticsEvent = {
   type: "page_view" | "video_open";
   path?: string;

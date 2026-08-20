@@ -55,6 +55,11 @@ export function StarDirectory({ entries, tvMode }: { entries: StarDirectoryEntry
     if (key === "ArrowRight" && index % columns !== columns - 1) target += 1;
     if (key === "ArrowUp") target -= columns;
     if (key === "ArrowDown") target += columns;
+    if (target < 0 && key === "ArrowUp") {
+      event.preventDefault();
+      document.querySelector<HTMLElement>(".filter-trigger")?.focus();
+      return;
+    }
     target = Math.max(0, Math.min(entries.length - 1, target));
     if (target === index) return;
 

@@ -37,6 +37,8 @@ const customized = {
   columns: 6,
   textSize: "large",
   metadata: {
+    stars: false,
+    title: false,
     creator: false,
     source: true,
     likes: false,
@@ -60,6 +62,8 @@ window.localStorage.setItem(DISPLAY_PREFERENCES_KEY, JSON.stringify({
 const repaired = readDisplayPreferences();
 assert.equal(repaired.columns, 5);
 assert.equal(repaired.textSize, "default");
+assert.equal(repaired.metadata.stars, true);
+assert.equal(repaired.metadata.title, true);
 assert.equal(repaired.metadata.creator, true);
 assert.equal(repaired.metadata.source, false);
 

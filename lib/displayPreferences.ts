@@ -1,6 +1,8 @@
 export type TextSizePreference = "small" | "default" | "large";
 
 export type VideoMetadataPreferences = {
+  stars: boolean;
+  title: boolean;
   creator: boolean;
   source: boolean;
   likes: boolean;
@@ -20,6 +22,8 @@ export const DEFAULT_DISPLAY_PREFERENCES: DisplayPreferences = {
   columns: 5,
   textSize: "default",
   metadata: {
+    stars: true,
+    title: true,
     creator: true,
     source: true,
     likes: true,
@@ -51,6 +55,8 @@ export function readDisplayPreferences(): DisplayPreferences {
         ? parsed.textSize
         : DEFAULT_DISPLAY_PREFERENCES.textSize,
       metadata: {
+        stars: typeof storedMetadata.stars === "boolean" ? storedMetadata.stars : true,
+        title: typeof storedMetadata.title === "boolean" ? storedMetadata.title : true,
         creator: typeof storedMetadata.creator === "boolean" ? storedMetadata.creator : true,
         source: typeof storedMetadata.source === "boolean" ? storedMetadata.source : true,
         likes: typeof storedMetadata.likes === "boolean" ? storedMetadata.likes : true,

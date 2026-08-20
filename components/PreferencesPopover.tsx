@@ -15,6 +15,8 @@ type PreferencesPopoverProps = {
 };
 
 const metadataOptions: Array<{ key: keyof VideoMetadataPreferences; label: string }> = [
+  { key: "stars", label: "Featured stars" },
+  { key: "title", label: "Video name" },
   { key: "creator", label: "Creator" },
   { key: "source", label: "Source platform" },
   { key: "likes", label: "Like count" },

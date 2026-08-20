@@ -18,6 +18,7 @@ const USERS_KEY = "kinet-users-v1";
 const SESSION_KEY = "kinet-session-v1";
 const LIKES_PREFIX = "kinet-likes-v1:";
 const PBKDF2_ITERATIONS = 180_000;
+export const MANAGER_USERNAME = "moran";
 
 function normalizeUsername(username: string): string {
   return username.trim().toLowerCase();
@@ -148,6 +149,10 @@ export async function registerAccount(input: {
   validatePassword(input.password);
   validateEmail(email);
 
+  if (normalized === MANAGER_USERNAME) {
+    throw new Error("The manager account already exists. Sign in instead.");
+  }
+
   const users = readUsers();
   if (users.some((user) => user.normalizedUsername === normalized)) {
     throw new Error("That username is already registered on this device.");
@@ -181,11 +186,45 @@ export async function signInAccount(
   return saveSession(user);
 }
 
+export async function establishManagerSession(
+  username: string,
+  password: string,
+): Promise<SessionUser> {
+  const displayUsername = username.trim();
+  const normalized = normalizeUsername(displayUsername);
+  if (normalized !== MANAGER_USERNAME) throw new Error("Manager account not recognized.");
+  validatePassword(password);
+
+  const users = readUsers();
+  const existingIndex = users.findIndex(
+    (candidate) => candidate.normalizedUsername === MANAGER_USERNAME,
+  );
+  const existing = users[existingIndex];
+  const salt = window.crypto.getRandomValues(new Uint8Array(16));
+  const manager: StoredUser = {
+    version: 1,
+    username: displayUsername || MANAGER_USERNAME,
+    normalizedUsername: MANAGER_USERNAME,
+    emailHash: existing?.emailHash,
+    salt: bytesToBase64(salt),
+    passwordHash: await derivePasswordHash(password, salt),
+    createdAt: existing?.createdAt ?? new Date().toISOString(),
+  };
+
+  if (existingIndex >= 0) users[existingIndex] = manager;
+  else users.push(manager);
+  writeUsers(users);
+  return saveSession(manager);
+}
+
 export async function resetPassword(input: {
   username: string;
   email: string;
   newPassword: string;
 }): Promise<SessionUser> {
+  if (normalizeUsername(input.username) === MANAGER_USERNAME) {
+    throw new Error("The manager password is managed by secure analytics sign-in.");
+  }
   validatePassword(input.newPassword);
   validateEmail(normalizeEmail(input.email));
 
@@ -215,6 +254,9 @@ export async function changePassword(input: {
   currentPassword: string;
   newPassword: string;
 }): Promise<void> {
+  if (input.normalizedUsername === MANAGER_USERNAME) {
+    throw new Error("The manager password is managed by secure analytics sign-in.");
+  }
   validatePassword(input.newPassword);
 
   const users = readUsers();

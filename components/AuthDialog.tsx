@@ -9,11 +9,18 @@ import {
 } from "react";
 import {
   changePassword,
+  establishManagerSession,
+  MANAGER_USERNAME,
   registerAccount,
   resetPassword,
   signInAccount,
   type SessionUser,
 } from "@/lib/localAuth";
+import {
+  authenticateAnalyticsOwner,
+  clearAnalyticsOwnerSession,
+  saveAnalyticsOwnerSession,
+} from "@/lib/analyticsClient";
 
 export type AuthMode = "login" | "register" | "reset" | "change";
 
@@ -52,7 +59,9 @@ export function AuthDialog({
 
   useEffect(() => {
     if (!open) return;
-    setUsername(mode === "change" ? currentUser?.username ?? "" : "");
+    setUsername(
+      mode === "change" || mode === "login" ? currentUser?.username ?? "" : "",
+    );
     setEmail("");
     setPassword("");
     setNewPassword("");
@@ -92,10 +101,20 @@ export function AuthDialog({
     try {
       if (mode === "register") {
         const user = await registerAccount({ username, password, email });
+        clearAnalyticsOwnerSession();
         onAuthenticated(user);
         onClose();
       } else if (mode === "login") {
-        const user = await signInAccount(username, password);
+        const normalizedUsername = username.trim().toLowerCase();
+        const user = normalizedUsername === MANAGER_USERNAME
+          ? await (async () => {
+              const ownerToken = await authenticateAnalyticsOwner(username, password);
+              const manager = await establishManagerSession(username, password);
+              saveAnalyticsOwnerSession(ownerToken);
+              return manager;
+            })()
+          : await signInAccount(username, password);
+        if (normalizedUsername !== MANAGER_USERNAME) clearAnalyticsOwnerSession();
         onAuthenticated(user);
         onClose();
       } else if (mode === "reset") {
@@ -121,6 +140,9 @@ export function AuthDialog({
     if (event.target === event.currentTarget) onClose();
   };
 
+  const isManagerLogin =
+    mode === "login" && username.trim().toLowerCase() === MANAGER_USERNAME;
+
   return (
     <div className="auth-backdrop" role="presentation" onMouseDown={handleBackdrop}>
       <section
@@ -142,8 +164,10 @@ export function AuthDialog({
         <p className="auth-dialog__eyebrow">Kinet account</p>
         <h2 id="auth-title">{titles[mode]}</h2>
         <p className="auth-dialog__intro">
-          {mode === "register" && "Save videos and find every like again in your Stars tab."}
-          {mode === "login" && "Sign in to like videos and open your personal Stars collection."}
+          {mode === "register" && "Save videos and find every like again in your personal collection."}
+          {mode === "login" && (isManagerLogin
+            ? "One secure sign-in opens your account and private analytics dashboard."
+            : "Sign in to like videos and open your personal collection.")}
           {mode === "reset" && "Use the optional recovery email saved during registration."}
           {mode === "change" && `Update the password for @${currentUser?.username}.`}
         </p>
@@ -251,7 +275,9 @@ export function AuthDialog({
         </div>
 
         <p className="auth-dialog__note" id="auth-note">
-          Static demo: salted password and recovery-email hashes plus likes are stored only in this browser and do not sync between devices.
+          {isManagerLogin
+            ? "The manager credential is verified by the private analytics service; it is never stored in the site bundle."
+            : "Static demo: salted password and recovery-email hashes plus likes are stored only in this browser and do not sync between devices."}
         </p>
       </section>
     </div>

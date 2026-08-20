@@ -26,10 +26,12 @@ import {
 import {
   getLikedVideoIds,
   getSession,
+  MANAGER_USERNAME,
   saveLikedVideoIds,
   signOut,
   type SessionUser,
 } from "@/lib/localAuth";
+import { clearAnalyticsOwnerSession } from "@/lib/analyticsClient";
 
 type Theme = "light" | "dark";
 type MainTab = "Trending" | "Latest" | "Categories" | "Stars" | "Liked";
@@ -169,6 +171,11 @@ export function VideoExplorer() {
     if (new URLSearchParams(window.location.search).get("tab") === "stars") {
       setActiveTab("Stars");
       setSort("Featured");
+    }
+
+    if (new URLSearchParams(window.location.search).get("managerLogin") === "1") {
+      setAuthMode("login");
+      setAuthOpen(true);
     }
 
     const savedPreferences = readDisplayPreferences();
@@ -408,6 +415,10 @@ export function VideoExplorer() {
   const updateDisplayPreferences = (preferences: DisplayPreferences) => {
     setDisplayPreferences(preferences);
     saveDisplayPreferences(preferences);
+
+    if (displayPreferences.metadata.stars && !preferences.metadata.stars) {
+      setFocusedAction("open");
+    }
   };
 
   const selectTab = (tab: MainTab) => {
@@ -450,6 +461,13 @@ export function VideoExplorer() {
     }
     setCurrentUser(user);
     setLikedVideoIds(new Set(nextLikes));
+
+    if (
+      user.normalizedUsername === MANAGER_USERNAME &&
+      new URLSearchParams(window.location.search).get("managerLogin") === "1"
+    ) {
+      window.location.assign("analytics/");
+    }
   };
 
   const toggleLike = (videoId: string) => {
@@ -467,6 +485,7 @@ export function VideoExplorer() {
 
   const handleSignOut = () => {
     signOut();
+    clearAnalyticsOwnerSession();
     setCurrentUser(null);
     setLikedVideoIds(new Set());
     setAccountMenuOpen(false);
@@ -480,7 +499,7 @@ export function VideoExplorer() {
     catalogRef.current?.scrollIntoView({ block: "start" });
   };
 
-  const isManager = currentUser?.normalizedUsername === "moran";
+  const isManager = currentUser?.normalizedUsername === MANAGER_USERNAME;
 
   const handleGridKeyDown = (
     event: KeyboardEvent<HTMLElement>,
@@ -525,7 +544,12 @@ export function VideoExplorer() {
       if (action === "like") {
         targetAction = "open";
       } else if (action === "open") {
-        targetAction = "star-1";
+        if (displayPreferences.metadata.stars) {
+          targetAction = "star-1";
+        } else if (index % columns !== 0) {
+          targetIndex = index - 1;
+          targetAction = "like";
+        }
       } else if (action === "star-1") {
         targetAction = "star-0";
       } else if (index % columns !== 0) {
@@ -538,6 +562,11 @@ export function VideoExplorer() {
       targetIndex = index + columns;
     }
 
+    if (targetIndex < 0 && normalizedKey === "ArrowUp") {
+      filterButtonRef.current?.focus();
+      filterButtonRef.current?.scrollIntoView({ block: "center", inline: "nearest" });
+      return;
+    }
     if (targetIndex < 0 || targetIndex >= filteredVideos.length) return;
     if (targetIndex === index && targetAction === action) return;
 
@@ -561,6 +590,72 @@ export function VideoExplorer() {
     nextControl?.focus();
     nextControl?.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
   };
+
+  useEffect(() => {
+    const enterGridWithArrows = (event: globalThis.KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+
+      const normalizedKey =
+        ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)
+          ? event.key
+          : legacyRemoteKeys[event.keyCode] ?? event.key;
+      if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(normalizedKey)) return;
+
+      const eventTarget = event.target as HTMLElement | null;
+      if (eventTarget?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (filterOpen || authOpen) return;
+      if (activeTab === "Stars" ? filteredStars.length === 0 : visibleVideos.length === 0) return;
+
+      const activeElement = document.activeElement as HTMLElement | null;
+      const toolbar = activeElement?.closest<HTMLElement>(".topbar, .catalog__header");
+      if (toolbar && activeElement && ["ArrowLeft", "ArrowRight"].includes(normalizedKey)) {
+        const controls = [...toolbar.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        )].filter((control) => control.getClientRects().length > 0);
+        const activeIndex = controls.indexOf(activeElement);
+        const offset = normalizedKey === "ArrowRight" ? 1 : -1;
+        const nextControl = controls[activeIndex + offset];
+        if (nextControl) {
+          event.preventDefault();
+          nextControl.focus();
+        }
+        return;
+      }
+
+      if (
+        activeElement &&
+        activeElement !== document.body &&
+        activeElement !== document.documentElement &&
+        !(toolbar && normalizedKey === "ArrowDown")
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      if (activeTab === "Stars") {
+        const firstStar = catalogRef.current?.querySelector<HTMLElement>(
+          '[data-star-card-index="0"]',
+        );
+        firstStar?.focus();
+        firstStar?.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+        return;
+      }
+
+      const safeAction = displayPreferences.metadata.stars || !focusedAction.startsWith("star-")
+        ? focusedAction
+        : "open";
+      const nextControl = gridRef.current?.querySelector<HTMLElement>(
+        `[data-video-index="${Math.min(focusedIndex, visibleVideos.length - 1)}"][data-card-action="${safeAction}"]`,
+      ) ?? gridRef.current?.querySelector<HTMLElement>(
+        '[data-video-index="0"][data-card-action="open"]',
+      );
+      nextControl?.focus();
+      nextControl?.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+    };
+
+    window.addEventListener("keydown", enterGridWithArrows);
+    return () => window.removeEventListener("keydown", enterGridWithArrows);
+  }, [activeTab, authOpen, displayPreferences.metadata.stars, filterOpen, filteredStars.length, focusedAction, focusedIndex, visibleVideos.length]);
 
   return (
     <div className="site-frame">
@@ -646,7 +741,9 @@ export function VideoExplorer() {
                   >
                     Liked videos
                   </button>
-                  <button type="button" role="menuitem" onClick={() => openAuth("change")}>Change password</button>
+                  {!isManager && (
+                    <button type="button" role="menuitem" onClick={() => openAuth("change")}>Change password</button>
+                  )}
                   <button className="is-danger" type="button" role="menuitem" onClick={handleSignOut}>Sign out</button>
                 </div>
               )}
@@ -738,8 +835,9 @@ export function VideoExplorer() {
             <>
               <p className="grid-nav-hint" id="grid-navigation-help">
                 <span aria-hidden="true">D-pad</span>
-                Use arrow keys to move. Each card opens by default; move right for its heart or
-                left for its featured stars. Press Enter or OK to activate.
+                Use arrow keys to move. Each card opens by default; move right for its heart
+                {displayPreferences.metadata.stars ? " or left for its featured stars" : ""}.
+                {" "}Press Enter or OK to activate.
               </p>
               <div
                 ref={gridRef}

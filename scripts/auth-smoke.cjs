@@ -27,6 +27,11 @@ global.window = {
 const auth = require(path.join(__dirname, "..", ".auth-test", "localAuth.js"));
 
 async function run() {
+  await assert.rejects(
+    auth.registerAccount({ username: "moran", password: "manager-password" }),
+    /manager account already exists/i,
+  );
+
   const registered = await auth.registerAccount({
     username: "Moran_01",
     password: "initial-password",
@@ -72,6 +77,18 @@ async function run() {
     newPassword: "recovered-password",
   });
   await auth.signInAccount("Moran_01", "recovered-password");
+
+  const manager = await auth.establishManagerSession("moran", "manager-password");
+  assert.equal(manager.normalizedUsername, auth.MANAGER_USERNAME);
+  assert.equal(auth.getSession()?.normalizedUsername, "moran");
+  await assert.rejects(
+    auth.changePassword({
+      normalizedUsername: "moran",
+      currentPassword: "manager-password",
+      newPassword: "new-manager-password",
+    }),
+    /secure analytics sign-in/i,
+  );
 
   process.stdout.write("Authentication smoke test passed.\n");
 }
