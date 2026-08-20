@@ -18,6 +18,7 @@ html[data-theme="light"] {
   --badge: rgb(17 24 39 / 78%);
   --hero-wash: #f7f8fa;
   --shadow: 0 16px 45px rgb(17 24 39 / 9%);
+  --preferred-video-columns: 5;
 }
 
 html[data-theme="dark"] {
@@ -53,6 +54,18 @@ html {
   font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+}
+
+html[data-text-size="small"] {
+  font-size: 90%;
+}
+
+html[data-text-size="default"] {
+  font-size: 100%;
+}
+
+html[data-text-size="large"] {
+  font-size: 112.5%;
 }
 
 body {
@@ -458,6 +471,13 @@ button {
   display: flex;
   align-items: center;
   gap: 14px;
+}
+
+.catalog__left-tools {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
 }
 
 .result-count {
@@ -1047,6 +1067,10 @@ button {
   pointer-events: none;
 }
 
+.video-card__body.without-platform {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .platform-mark {
   display: grid;
   width: 32px;
@@ -1103,6 +1127,11 @@ button {
 .video-card__meta {
   display: flex;
   gap: 4px;
+}
+
+.video-card__meta span + span::before {
+  content: "·";
+  margin-right: 4px;
 }
 
 .video-card__more {
@@ -2080,21 +2109,21 @@ select:focus-visible {
 
 @media (min-width: 64rem) {
   .video-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--preferred-video-columns, 5), minmax(0, 1fr));
     gap: 11px;
   }
 }
 
 @media (min-width: 90rem) {
   .video-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--preferred-video-columns, 5), minmax(0, 1fr));
     gap: 12px;
   }
 }
 
 @media (min-width: 112.5rem) {
   .video-grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--preferred-video-columns, 5), minmax(0, 1fr));
     gap: 12px;
   }
 }
@@ -2342,8 +2371,19 @@ select:focus-visible {
 }
 
 html[data-tv="true"] {
-  font-size: 112.5%;
   scroll-padding-top: 8vh;
+}
+
+html[data-tv="true"][data-text-size="small"] {
+  font-size: 100%;
+}
+
+html[data-tv="true"][data-text-size="default"] {
+  font-size: 112.5%;
+}
+
+html[data-tv="true"][data-text-size="large"] {
+  font-size: 125%;
 }
 
 html[data-tv="true"] body {
@@ -2361,7 +2401,7 @@ html[data-tv="true"] .catalog {
 }
 
 html[data-tv="true"] .video-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--preferred-video-columns, 5), minmax(0, 1fr));
   gap: clamp(14px, 1vw, 22px);
 }
 

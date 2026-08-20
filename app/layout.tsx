@@ -13,6 +13,16 @@ const themeBootScript = `
     document.documentElement.dataset.theme = 'light';
     document.documentElement.dataset.tv = 'false';
   }
+  try {
+    const display = JSON.parse(localStorage.getItem('kinet-display-preferences-v1') || '{}');
+    const textSize = ['small', 'default', 'large'].includes(display.textSize) ? display.textSize : 'default';
+    const columns = [3, 4, 5, 6].includes(display.columns) ? display.columns : 5;
+    document.documentElement.dataset.textSize = textSize;
+    document.documentElement.style.setProperty('--preferred-video-columns', String(columns));
+  } catch (_) {
+    document.documentElement.dataset.textSize = 'default';
+    document.documentElement.style.setProperty('--preferred-video-columns', '5');
+  }
 `;
 
 export const metadata: Metadata = {
@@ -29,7 +39,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" data-theme="light" data-tv="false" suppressHydrationWarning>
+    <html lang="en" data-theme="light" data-tv="false" data-text-size="default" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>

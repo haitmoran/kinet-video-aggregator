@@ -12,6 +12,7 @@ import {
 } from "react";
 import type { VideoItem } from "@/data/videos";
 import { trackAnalyticsEvent } from "@/lib/analyticsClient";
+import type { VideoMetadataPreferences } from "@/lib/displayPreferences";
 import { VideoStars } from "@/components/VideoStars";
 
 type Intent = "hover" | "focus" | "press";
@@ -74,6 +75,7 @@ type VideoCardProps = {
   index: number;
   liked: boolean;
   onToggleLike: () => void;
+  metadata: VideoMetadataPreferences;
   priority?: boolean;
   tabIndex?: number;
   onKeyDown?: KeyboardEventHandler<HTMLAnchorElement>;
@@ -88,6 +90,7 @@ export function VideoCard({
   index,
   liked,
   onToggleLike,
+  metadata,
   priority = false,
   tabIndex = 0,
   onKeyDown,
@@ -198,6 +201,12 @@ export function VideoCard({
 
   const mountPreview = hasIntent && isInViewport && !previewFailed;
   const platformMark = video.platform === "Internet Archive" ? "IA" : "M";
+  const metadataItems = [
+    metadata.source ? video.platform : "",
+    metadata.likes ? `${compactNumber.format(video.likeCount)} likes` : "",
+    metadata.year ? String(video.publishedYear) : "",
+  ].filter(Boolean);
+  const showBody = metadata.creator || metadataItems.length > 0;
 
   useEffect(() => {
     const preview = videoRef.current;
@@ -308,23 +317,23 @@ export function VideoCard({
               <path d="M8 5.4v13.2L18.5 12 8 5.4Z" />
             </svg>
           </span>
-          <span className="video-card__duration" aria-hidden="true">{video.duration}</span>
+          {metadata.duration && <span className="video-card__duration" aria-hidden="true">{video.duration}</span>}
         </div>
 
-        <div className="video-card__body">
-          <div className="platform-mark"><span>{platformMark}</span></div>
-          <div className="video-card__copy">
-            <p className="video-card__creator">{video.creator}</p>
-            <p className="video-card__meta">
-              <span>{video.platform}</span>
-              <span aria-hidden="true">·</span>
-              <span>{compactNumber.format(video.likeCount)} likes</span>
-              <span aria-hidden="true">·</span>
-              <span>{video.publishedYear}</span>
-            </p>
+        {showBody && (
+          <div className={`video-card__body ${metadata.source ? "" : "without-platform"}`}>
+            {metadata.source && <div className="platform-mark"><span>{platformMark}</span></div>}
+            <div className="video-card__copy">
+              {metadata.creator && <p className="video-card__creator">{video.creator}</p>}
+              {metadataItems.length > 0 && (
+                <p className="video-card__meta">
+                  {metadataItems.map((item) => <span key={item}>{item}</span>)}
+                </p>
+              )}
+            </div>
+            <span className="video-card__more" aria-hidden="true">•••</span>
           </div>
-          <span className="video-card__more" aria-hidden="true">•••</span>
-        </div>
+        )}
       </a>
 
       <VideoStars

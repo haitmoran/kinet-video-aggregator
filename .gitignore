@@ -1,6 +1,7 @@
 node_modules/
 .next/
 .auth-test/
+.preferences-test/
 out/
 .DS_Store
 *.log

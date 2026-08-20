@@ -14,6 +14,7 @@ A high-performance video aggregation interface built with Next.js, React, and Ty
 - Smart TV overscan mode with D-pad navigation across videos, talent, and favorites
 - Search plus a collapsible filter drawer for categories, mood, duration, source, and era
 - Featured, newest, most-liked, shortest, and longest ranking modes
+- Persistent display preferences for 3–6 desktop columns, text sizing, and visible metadata
 - Browser-local username/password registration with optional recovery email
 - Per-user likes surfaced in the Stars tab
 - Two fictional featured-star profiles per video, with quick previews and static profile pages

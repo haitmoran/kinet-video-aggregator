@@ -11,10 +11,18 @@ import {
   type KeyboardEvent,
 } from "react";
 import { AuthDialog, type AuthMode } from "@/components/AuthDialog";
+import { PreferencesPopover } from "@/components/PreferencesPopover";
 import { StarDirectory, type StarDirectoryEntry } from "@/components/StarDirectory";
 import { VideoCard, type VideoCardAction } from "@/components/VideoCard";
 import { categories, moods, videos } from "@/data/videos";
 import { getStarSlugsForVideo, starProfiles } from "@/data/stars";
+import {
+  applyDisplayPreferences,
+  DEFAULT_DISPLAY_PREFERENCES,
+  readDisplayPreferences,
+  saveDisplayPreferences,
+  type DisplayPreferences,
+} from "@/lib/displayPreferences";
 import {
   getLikedVideoIds,
   getSession,
@@ -95,15 +103,13 @@ function CloseIcon() {
   );
 }
 
-function columnCount(tvMode: boolean): number {
-  if (tvMode) return 4;
+function columnCount(tvMode: boolean, preferredColumns: DisplayPreferences["columns"]): number {
+  if (tvMode) return preferredColumns;
   const width = window.innerWidth;
   if (width < 480) return 1;
   if (width < 768) return 2;
   if (width < 1024) return 3;
-  if (width < 1440) return 4;
-  if (width < 1800) return 5;
-  return 6;
+  return preferredColumns;
 }
 
 export function VideoExplorer() {
@@ -131,6 +137,9 @@ export function VideoExplorer() {
   const [durationFilter, setDurationFilter] = useState<DurationFilter>("Any duration");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("All sources");
   const [eraFilter, setEraFilter] = useState<EraFilter>("Any era");
+  const [displayPreferences, setDisplayPreferences] = useState<DisplayPreferences>(
+    DEFAULT_DISPLAY_PREFERENCES,
+  );
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [focusedAction, setFocusedAction] = useState<VideoCardAction>("open");
@@ -161,6 +170,10 @@ export function VideoExplorer() {
       setActiveTab("Stars");
       setSort("Featured");
     }
+
+    const savedPreferences = readDisplayPreferences();
+    setDisplayPreferences(savedPreferences);
+    applyDisplayPreferences(savedPreferences);
   }, []);
 
   useEffect(() => {
@@ -392,6 +405,11 @@ export function VideoExplorer() {
     Number(sourceFilter !== "All sources") +
     Number(eraFilter !== "Any era");
 
+  const updateDisplayPreferences = (preferences: DisplayPreferences) => {
+    setDisplayPreferences(preferences);
+    saveDisplayPreferences(preferences);
+  };
+
   const selectTab = (tab: MainTab) => {
     setActiveTab(tab);
     if (tab === "Trending") {
@@ -488,7 +506,7 @@ export function VideoExplorer() {
     }
 
     event.preventDefault();
-    const columns = columnCount(tvMode);
+    const columns = columnCount(tvMode, displayPreferences.columns);
     let targetIndex = index;
     let targetAction = action;
 
@@ -650,19 +668,25 @@ export function VideoExplorer() {
           aria-label={activeTab === "Stars" ? "Star directory" : "Video catalog"}
         >
           <div className="catalog__header">
-            <button
-              ref={filterButtonRef}
-              className={`filter-trigger ${activeFilterCount > 0 ? "has-filters" : ""}`}
-              type="button"
-              aria-expanded={filterOpen}
-              aria-controls="filter-drawer"
-              onClick={() => setFilterOpen(true)}
-            >
-              <FilterIcon />
-              <span>Filters</span>
-              {activeFilterCount > 0 && <span className="filter-trigger__count">{activeFilterCount}</span>}
-            </button>
-            {activeTab === "Liked" && <span className="catalog-view-label">Liked videos</span>}
+            <div className="catalog__left-tools">
+              <button
+                ref={filterButtonRef}
+                className={`filter-trigger ${activeFilterCount > 0 ? "has-filters" : ""}`}
+                type="button"
+                aria-expanded={filterOpen}
+                aria-controls="filter-drawer"
+                onClick={() => setFilterOpen(true)}
+              >
+                <FilterIcon />
+                <span>Filters</span>
+                {activeFilterCount > 0 && <span className="filter-trigger__count">{activeFilterCount}</span>}
+              </button>
+              <PreferencesPopover
+                preferences={displayPreferences}
+                onChange={updateDisplayPreferences}
+              />
+              {activeTab === "Liked" && <span className="catalog-view-label">Liked videos</span>}
+            </div>
             <div className="catalog__tools">
               <span className="result-count">
                 {activeTab === "Stars"
@@ -739,6 +763,7 @@ export function VideoExplorer() {
                     index={index}
                     liked={likedVideoIds.has(video.id)}
                     onToggleLike={() => toggleLike(video.id)}
+                    metadata={displayPreferences.metadata}
                     priority={index < 6}
                     tabIndex={
                       tvMode && !(focusedIndex === index && focusedAction === "open")
