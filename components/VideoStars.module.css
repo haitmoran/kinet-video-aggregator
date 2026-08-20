@@ -89,14 +89,16 @@
   pointer-events: auto;
 }
 
-.dialog[data-placement="right"] {
+.dialog[data-placement="upper-right"] {
   --popup-entry-x: -10px;
-  transform-origin: left center;
+  --popup-entry-y: 8px;
+  transform-origin: left bottom;
 }
 
-.dialog[data-placement="left"] {
+.dialog[data-placement="upper-left"] {
   --popup-entry-x: 10px;
-  transform-origin: right center;
+  --popup-entry-y: 8px;
+  transform-origin: right bottom;
 }
 
 .dialog[data-placement="below"] {
@@ -109,28 +111,45 @@
   transform-origin: bottom center;
 }
 
+.actions {
+  position: absolute;
+  z-index: 5;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
 .close,
 .love {
-  position: absolute;
-  z-index: 2;
-  top: 14px;
-  display: grid;
-  width: 34px;
   height: 34px;
-  place-items: center;
   border: 1px solid rgb(255 255 255 / 45%);
-  border-radius: 50%;
   background: rgb(17 24 39 / 68%);
   color: #fff;
   cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .close {
-  right: 14px;
+  display: grid;
+  width: 34px;
+  place-items: center;
+  border-radius: 50%;
 }
 
 .love {
-  right: 54px;
+  display: inline-flex;
+  min-width: 76px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 0 11px;
+  font-size: 0.67rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
 }
 
 .love svg path {
@@ -191,7 +210,7 @@
 
 .dialogCopy {
   min-width: 0;
-  padding: 19px 78px 10px 0;
+  padding: 52px 8px 10px 0;
 }
 
 .prototype {
@@ -296,7 +315,7 @@
   }
 
   .dialogCopy {
-    padding: 14px 72px 8px 0;
+    padding: 52px 4px 8px 0;
   }
 }
 

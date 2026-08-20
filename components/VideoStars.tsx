@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   useCallback,
   useEffect,
@@ -28,7 +27,7 @@ type VideoStarsProps = {
   onStarKeyDown?: KeyboardEventHandler<HTMLButtonElement>;
 };
 
-type PopoverPlacement = "right" | "left" | "below" | "above";
+type PopoverPlacement = "upper-right" | "upper-left" | "below" | "above";
 
 type PopoverPosition = {
   top: number;
@@ -38,7 +37,7 @@ type PopoverPosition = {
   placement: PopoverPlacement;
 };
 
-function positionBesideCard(
+function positionPreviewTray(
   trigger: HTMLButtonElement,
   measuredHeight = 260,
 ): PopoverPosition {
@@ -46,21 +45,32 @@ function positionBesideCard(
   const cardBounds = card?.getBoundingClientRect() ?? trigger.getBoundingClientRect();
   const gutter = 12;
   const gap = 12;
+  const topbarBottom = document.querySelector<HTMLElement>(".topbar")
+    ?.getBoundingClientRect().bottom ?? 0;
+  const safeTop = Math.max(gutter, topbarBottom + 10);
   const tvMode = document.documentElement.dataset.tv === "true";
   const idealWidth = tvMode ? 520 : 380;
-  const maximumHeight = Math.max(1, window.innerHeight - gutter * 2);
+  const maximumHeight = Math.max(1, window.innerHeight - safeTop - gutter);
   const dialogHeight = Math.min(measuredHeight, maximumHeight);
   const availableRight = Math.max(0, window.innerWidth - cardBounds.right - gap - gutter);
   const availableLeft = Math.max(0, cardBounds.left - gap - gutter);
   const widestSide = Math.max(availableRight, availableLeft);
 
   if (window.innerWidth >= 700 && widestSide >= 240) {
-    const placement: PopoverPlacement = availableRight >= availableLeft ? "right" : "left";
-    const availableWidth = placement === "right" ? availableRight : availableLeft;
+    const placement: PopoverPlacement = availableRight >= availableLeft
+      ? "upper-right"
+      : "upper-left";
+    const availableWidth = placement === "upper-right" ? availableRight : availableLeft;
     const width = Math.min(idealWidth, availableWidth);
     return {
-      top: Math.max(gutter, Math.min(cardBounds.top, window.innerHeight - dialogHeight - gutter)),
-      left: placement === "right"
+      top: Math.max(
+        safeTop,
+        Math.min(
+          cardBounds.top - dialogHeight * 0.58,
+          window.innerHeight - dialogHeight - gutter,
+        ),
+      ),
+      left: placement === "upper-right"
         ? cardBounds.right + gap
         : cardBounds.left - gap - width,
       width,
@@ -78,7 +88,7 @@ function positionBesideCard(
     ),
   );
   const availableBelow = Math.max(1, window.innerHeight - cardBounds.bottom - gap - gutter);
-  const availableAbove = Math.max(1, cardBounds.top - gap - gutter);
+  const availableAbove = Math.max(1, cardBounds.top - gap - safeTop);
 
   if (availableBelow >= availableAbove) {
     return {
@@ -92,7 +102,7 @@ function positionBesideCard(
 
   const height = Math.min(dialogHeight, availableAbove);
   return {
-    top: cardBounds.top - gap - height,
+    top: Math.max(safeTop, cardBounds.top - gap - height),
     left,
     width,
     maxHeight: availableAbove,
@@ -125,14 +135,14 @@ export function VideoStars({
     left: 12,
     width: 380,
     maxHeight: 520,
-    placement: "right",
+    placement: "upper-right",
   });
 
   const updatePopoverPosition = useCallback(() => {
     const trigger = triggerRefs.current[activeIndexRef.current];
     if (trigger) {
       setPopoverPosition(
-        positionBesideCard(trigger, dialogRef.current?.offsetHeight ?? 260),
+        positionPreviewTray(trigger, dialogRef.current?.offsetHeight ?? 260),
       );
     }
   }, []);
@@ -148,7 +158,7 @@ export function VideoStars({
     if (!activeStar) return;
 
     updatePopoverPosition();
-    window.requestAnimationFrame(() => profileLinkRef.current?.focus());
+    window.requestAnimationFrame(() => loveButtonRef.current?.focus());
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -165,8 +175,8 @@ export function VideoStars({
 
       if (["ArrowUp", "ArrowRight", "ArrowDown", "ArrowLeft"].includes(event.key)) {
         const focusable = [
-          profileLinkRef.current,
           loveButtonRef.current,
+          profileLinkRef.current,
           closeButtonRef.current,
         ].filter(
           (element): element is HTMLAnchorElement | HTMLButtonElement => Boolean(element),
@@ -181,8 +191,8 @@ export function VideoStars({
 
       if (event.key === "Tab") {
         const focusable = [
-          profileLinkRef.current,
           loveButtonRef.current,
+          profileLinkRef.current,
           closeButtonRef.current,
         ].filter(
           (element): element is HTMLAnchorElement | HTMLButtonElement => Boolean(element),
@@ -227,7 +237,7 @@ export function VideoStars({
       return;
     }
     activeIndexRef.current = starIndex;
-    setPopoverPosition(positionBesideCard(event.currentTarget));
+    setPopoverPosition(positionPreviewTray(event.currentTarget));
     setActiveStar(star);
   };
 
@@ -277,47 +287,50 @@ export function VideoStars({
               "--popover-max-height": `${popoverPosition.maxHeight}px`,
             } as CSSProperties}
           >
-            <button
-              ref={loveButtonRef}
-              className={`${styles.love} ${lovedStarSlugs.has(activeStar.slug) ? styles.loved : ""}`}
-              type="button"
-              aria-pressed={lovedStarSlugs.has(activeStar.slug)}
-              aria-label={lovedStarSlugs.has(activeStar.slug)
-                ? `Remove ${activeStar.name} from loved stars`
-                : `Love ${activeStar.name}`}
-              title={lovedStarSlugs.has(activeStar.slug) ? "Remove from loved stars" : "Love this star"}
-              onClick={() => {
-                const changed = onToggleStarLove(activeStar.slug);
-                if (!changed) closeProfile(false);
-              }}
-            >
-              <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
-                <path d="M12 20.3 4.2 12.8A4.8 4.8 0 0 1 11 6l1 1 1-1a4.8 4.8 0 0 1 6.8 6.8L12 20.3Z" />
-              </svg>
-            </button>
+            <div className={styles.actions}>
+              <button
+                ref={loveButtonRef}
+                className={`${styles.love} ${lovedStarSlugs.has(activeStar.slug) ? styles.loved : ""}`}
+                type="button"
+                aria-pressed={lovedStarSlugs.has(activeStar.slug)}
+                aria-label={lovedStarSlugs.has(activeStar.slug)
+                  ? `Remove ${activeStar.name} from loved stars`
+                  : `Love ${activeStar.name}`}
+                title={lovedStarSlugs.has(activeStar.slug) ? "Remove from loved stars" : "Love this star"}
+                onClick={() => {
+                  const changed = onToggleStarLove(activeStar.slug);
+                  if (!changed) closeProfile(false);
+                }}
+              >
+                <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+                  <path d="M12 20.3 4.2 12.8A4.8 4.8 0 0 1 11 6l1 1 1-1a4.8 4.8 0 0 1 6.8 6.8L12 20.3Z" />
+                </svg>
+                <span>{lovedStarSlugs.has(activeStar.slug) ? "Loved" : "Love"}</span>
+              </button>
 
-            <button
-              ref={closeButtonRef}
-              className={styles.close}
-              type="button"
-              aria-label="Close star preview"
-              onClick={() => closeProfile()}
-              onKeyDown={(event) => {
-                if (["OK", "Select", "Accept"].includes(event.key)) {
-                  event.preventDefault();
-                  event.currentTarget.click();
-                }
-              }}
-            >
-              <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
-                <path d="m6.5 6.5 11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
-            </button>
+              <button
+                ref={closeButtonRef}
+                className={styles.close}
+                type="button"
+                aria-label="Close star preview"
+                onClick={() => closeProfile()}
+                onKeyDown={(event) => {
+                  if (["OK", "Select", "Accept"].includes(event.key)) {
+                    event.preventDefault();
+                    event.currentTarget.click();
+                  }
+                }}
+              >
+                <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+                  <path d="m6.5 6.5 11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
 
-            <Link
+            <a
               ref={profileLinkRef}
               className={styles.profileLink}
-              href={`/stars/${activeStar.slug}/`}
+              href={`?tab=stars&star=${activeStar.slug}#catalog`}
               onClick={() => closeProfile(false)}
               onKeyDown={(event) => {
                 if (["OK", "Select", "Accept"].includes(event.key)) {
@@ -333,13 +346,13 @@ export function VideoStars({
                 <p className={styles.role}>{activeStar.role}</p>
                 <p id={`${dialogId}-description`} className={styles.bio}>{activeStar.shortBio}</p>
                 <span className={styles.cta}>
-                  View profile
+                  Open in Stars
                   <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
                     <path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </span>
               </div>
-            </Link>
+            </a>
           </section>
         </div>,
         document.body,

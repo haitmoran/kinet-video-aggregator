@@ -43,6 +43,7 @@ type StarDirectoryProps = {
   lovedStarSlugs: ReadonlySet<string>;
   onToggleStarLove: (starSlug: string) => boolean;
   onExitDown?: () => void;
+  initialStarSlug?: string | null;
 };
 
 export function StarDirectory({
@@ -53,6 +54,7 @@ export function StarDirectory({
   lovedStarSlugs,
   onToggleStarLove,
   onExitDown,
+  initialStarSlug,
 }: StarDirectoryProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -62,6 +64,7 @@ export function StarDirectory({
   const [activeEntry, setActiveEntry] = useState<StarDirectoryEntry | null>(null);
   const [showAllVideos, setShowAllVideos] = useState(false);
   const activeIndexRef = useRef(0);
+  const openedInitialSlugRef = useRef<string | null>(null);
 
   const closeDrawer = useCallback((restoreFocus = true) => {
     setActiveEntry(null);
@@ -70,6 +73,20 @@ export function StarDirectory({
       window.requestAnimationFrame(() => cardRefs.current[activeIndexRef.current]?.focus());
     }
   }, []);
+
+  useEffect(() => {
+    if (!initialStarSlug || openedInitialSlugRef.current === initialStarSlug) return;
+    const entryIndex = entries.findIndex(
+      ({ profile }) => profile.slug === initialStarSlug,
+    );
+    if (entryIndex < 0) return;
+
+    openedInitialSlugRef.current = initialStarSlug;
+    activeIndexRef.current = entryIndex;
+    setFocusedIndex(entryIndex);
+    setShowAllVideos(false);
+    setActiveEntry(entries[entryIndex]);
+  }, [entries, initialStarSlug]);
 
   useEffect(() => {
     if (!activeEntry) return;

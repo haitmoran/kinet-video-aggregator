@@ -173,6 +173,7 @@ export function VideoExplorer() {
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [pendingLikeId, setPendingLikeId] = useState<string | null>(null);
   const [pendingStarSlug, setPendingStarSlug] = useState<string | null>(null);
+  const [requestedStarSlug, setRequestedStarSlug] = useState<string | null>(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
 
@@ -199,6 +200,7 @@ export function VideoExplorer() {
     if (startsOnStars) {
       setActiveTab("Stars");
       setStarSort("Featured");
+      setRequestedStarSlug(pageParameters.get("star"));
     }
 
     if (pageParameters.get("managerLogin") === "1") {
@@ -962,6 +964,7 @@ export function VideoExplorer() {
                 details={displayPreferences.starMetadata}
                 lovedStarSlugs={lovedStarSlugs}
                 onToggleStarLove={toggleStarLove}
+                initialStarSlug={requestedStarSlug}
               />
             ) : (
               <div className="empty-state">

@@ -295,7 +295,7 @@ export function AuthDialog({
         <p className="auth-dialog__note" id="auth-note">
           {isManagerLogin
             ? "The manager credential is verified by the private analytics service; it is never stored in the site bundle."
-            : "Static demo: salted password and recovery-email hashes plus likes are stored only in this browser and do not sync between devices."}
+            : "Static demo: salted password and recovery-email hashes plus loved videos and stars are stored only in this browser and do not sync between devices."}
         </p>
       </section>
     </div>
