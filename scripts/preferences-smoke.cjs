@@ -35,6 +35,7 @@ assert.deepEqual(readDisplayPreferences(), DEFAULT_DISPLAY_PREFERENCES);
 
 const customized = {
   columns: 6,
+  starColumns: 3,
   textSize: "large",
   metadata: {
     stars: false,
@@ -45,11 +46,20 @@ const customized = {
     year: true,
     duration: false,
   },
+  starMetadata: {
+    name: true,
+    role: false,
+    location: true,
+    appearances: false,
+    likes: true,
+    latest: false,
+  },
 };
 saveDisplayPreferences(customized);
 assert.deepEqual(readDisplayPreferences(), customized);
 assert.equal(document.documentElement.dataset.textSize, "large");
 assert.equal(properties.get("--preferred-video-columns"), "6");
+assert.equal(properties.get("--preferred-star-columns"), "3");
 
 window.localStorage.setItem(DISPLAY_PREFERENCES_KEY, "not-json");
 assert.deepEqual(readDisplayPreferences(), DEFAULT_DISPLAY_PREFERENCES);
@@ -61,10 +71,12 @@ window.localStorage.setItem(DISPLAY_PREFERENCES_KEY, JSON.stringify({
 }));
 const repaired = readDisplayPreferences();
 assert.equal(repaired.columns, 5);
+assert.equal(repaired.starColumns, 4);
 assert.equal(repaired.textSize, "default");
 assert.equal(repaired.metadata.stars, true);
 assert.equal(repaired.metadata.title, true);
 assert.equal(repaired.metadata.creator, true);
 assert.equal(repaired.metadata.source, false);
+assert.deepEqual(repaired.starMetadata, DEFAULT_DISPLAY_PREFERENCES.starMetadata);
 
 console.log("Display preferences smoke test passed.");

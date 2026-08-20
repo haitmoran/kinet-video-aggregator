@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import {
   DEFAULT_DISPLAY_PREFERENCES,
   type DisplayPreferences,
+  type StarCardPreferences,
   type TextSizePreference,
   type VideoMetadataPreferences,
 } from "@/lib/displayPreferences";
 import styles from "./PreferencesPopover.module.css";
 
 type PreferencesPopoverProps = {
+  view: "videos" | "stars";
   preferences: DisplayPreferences;
   onChange: (preferences: DisplayPreferences) => void;
 };
@@ -24,6 +26,15 @@ const metadataOptions: Array<{ key: keyof VideoMetadataPreferences; label: strin
   { key: "duration", label: "Duration badge" },
 ];
 
+const starMetadataOptions: Array<{ key: keyof StarCardPreferences; label: string }> = [
+  { key: "name", label: "Star name" },
+  { key: "role", label: "Role" },
+  { key: "location", label: "Location" },
+  { key: "appearances", label: "Appearance count" },
+  { key: "likes", label: "Related likes" },
+  { key: "latest", label: "Latest work year" },
+];
+
 function SettingsIcon() {
   return (
     <svg viewBox="0 0 24 24" width="19" height="19" fill="none" aria-hidden="true">
@@ -32,7 +43,7 @@ function SettingsIcon() {
   );
 }
 
-export function PreferencesPopover({ preferences, onChange }: PreferencesPopoverProps) {
+export function PreferencesPopover({ view, preferences, onChange }: PreferencesPopoverProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
@@ -62,6 +73,35 @@ export function PreferencesPopover({ preferences, onChange }: PreferencesPopover
         ...preferences.metadata,
         [key]: !preferences.metadata[key],
       },
+    });
+  };
+
+  const updateStarMetadata = (key: keyof StarCardPreferences) => {
+    onChange({
+      ...preferences,
+      starMetadata: {
+        ...preferences.starMetadata,
+        [key]: !preferences.starMetadata[key],
+      },
+    });
+  };
+
+  const resetCurrentView = () => {
+    if (view === "stars") {
+      onChange({
+        ...preferences,
+        textSize: DEFAULT_DISPLAY_PREFERENCES.textSize,
+        starColumns: DEFAULT_DISPLAY_PREFERENCES.starColumns,
+        starMetadata: DEFAULT_DISPLAY_PREFERENCES.starMetadata,
+      });
+      return;
+    }
+
+    onChange({
+      ...preferences,
+      textSize: DEFAULT_DISPLAY_PREFERENCES.textSize,
+      columns: DEFAULT_DISPLAY_PREFERENCES.columns,
+      metadata: DEFAULT_DISPLAY_PREFERENCES.metadata,
     });
   };
 
@@ -98,16 +138,20 @@ export function PreferencesPopover({ preferences, onChange }: PreferencesPopover
           </header>
 
           <fieldset className={styles.group}>
-            <legend>Videos per row</legend>
+            <legend>{view === "stars" ? "Stars per row" : "Videos per row"}</legend>
             <p>Applied on desktop and TV screens.</p>
             <div className={styles.segmented}>
-              {([3, 4, 5, 6] as const).map((columns) => (
+              {(view === "stars" ? [2, 3, 4, 5] as const : [3, 4, 5, 6] as const).map((columns) => (
                 <button
                   key={columns}
                   type="button"
-                  className={preferences.columns === columns ? styles.selected : ""}
-                  aria-pressed={preferences.columns === columns}
-                  onClick={() => onChange({ ...preferences, columns })}
+                  className={(view === "stars" ? preferences.starColumns : preferences.columns) === columns ? styles.selected : ""}
+                  aria-pressed={(view === "stars" ? preferences.starColumns : preferences.columns) === columns}
+                  onClick={() => onChange(
+                    view === "stars"
+                      ? { ...preferences, starColumns: columns as DisplayPreferences["starColumns"] }
+                      : { ...preferences, columns: columns as DisplayPreferences["columns"] },
+                  )}
                 >
                   {columns}
                 </button>
@@ -133,16 +177,24 @@ export function PreferencesPopover({ preferences, onChange }: PreferencesPopover
           </fieldset>
 
           <fieldset className={styles.group}>
-            <legend>Video metadata</legend>
-            <p>Choose the details shown on every thumbnail.</p>
+            <legend>{view === "stars" ? "Star details" : "Video metadata"}</legend>
+            <p>
+              {view === "stars"
+                ? "Choose the details shown on every star card."
+                : "Choose the details shown on every thumbnail."}
+            </p>
             <div className={styles.toggles}>
-              {metadataOptions.map((option) => (
+              {(view === "stars" ? starMetadataOptions : metadataOptions).map((option) => (
                 <label key={option.key}>
                   <span>{option.label}</span>
                   <input
                     type="checkbox"
-                    checked={preferences.metadata[option.key]}
-                    onChange={() => updateMetadata(option.key)}
+                    checked={view === "stars"
+                      ? preferences.starMetadata[option.key as keyof StarCardPreferences]
+                      : preferences.metadata[option.key as keyof VideoMetadataPreferences]}
+                    onChange={() => view === "stars"
+                      ? updateStarMetadata(option.key as keyof StarCardPreferences)
+                      : updateMetadata(option.key as keyof VideoMetadataPreferences)}
                   />
                   <span className={styles.switch} aria-hidden="true" />
                 </label>
@@ -153,9 +205,9 @@ export function PreferencesPopover({ preferences, onChange }: PreferencesPopover
           <button
             className={styles.reset}
             type="button"
-            onClick={() => onChange(DEFAULT_DISPLAY_PREFERENCES)}
+            onClick={resetCurrentView}
           >
-            Restore defaults
+            Restore {view === "stars" ? "star" : "video"} defaults
           </button>
         </section>
       )}

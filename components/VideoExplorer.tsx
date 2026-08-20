@@ -35,17 +35,24 @@ import { clearAnalyticsOwnerSession } from "@/lib/analyticsClient";
 
 type Theme = "light" | "dark";
 type MainTab = "Trending" | "Latest" | "Categories" | "Stars" | "Liked";
-type RankMode = "Featured" | "Newest" | "Most liked" | "Shortest" | "Longest";
+type VideoRankMode = "Featured" | "Newest" | "Most liked" | "Shortest" | "Longest";
+type StarRankMode = "Featured" | "Name A–Z" | "Most appearances" | "Most liked" | "Newest work";
 type DurationFilter = "Any duration" | "Under 3 min" | "3–6 min" | "6–12 min" | "12+ min";
 type SourceFilter = "All sources" | "Internet Archive" | "MDN";
 type EraFilter = "Any era" | "Before 2010" | "2010s" | "2020s";
+type StarAppearanceFilter = "Any appearances" | "40+ stories" | "Under 40 stories";
 
 const PAGE_SIZE = 24;
 const mainTabs: MainTab[] = ["Trending", "Latest", "Categories", "Stars"];
-const rankModes: RankMode[] = ["Featured", "Newest", "Most liked", "Shortest", "Longest"];
+const videoRankModes: VideoRankMode[] = ["Featured", "Newest", "Most liked", "Shortest", "Longest"];
+const starRankModes: StarRankMode[] = ["Featured", "Name A–Z", "Most appearances", "Most liked", "Newest work"];
 const durationFilters: DurationFilter[] = ["Any duration", "Under 3 min", "3–6 min", "6–12 min", "12+ min"];
 const sourceFilters: SourceFilter[] = ["All sources", "Internet Archive", "MDN"];
 const eraFilters: EraFilter[] = ["Any era", "Before 2010", "2010s", "2020s"];
+const starAppearanceFilters: StarAppearanceFilter[] = ["Any appearances", "40+ stories", "Under 40 stories"];
+const starRoles = [...new Set(starProfiles.map((profile) => profile.role))];
+const starSpecialties = [...new Set(starProfiles.flatMap((profile) => profile.specialties))].sort();
+const starRegions = ["Europe", "Asia", "Africa", "North America"] as const;
 const legacyRemoteKeys: Record<number, string> = {
   13: "Enter",
   37: "ArrowLeft",
@@ -114,6 +121,13 @@ function columnCount(tvMode: boolean, preferredColumns: DisplayPreferences["colu
   return preferredColumns;
 }
 
+function regionForLocation(location: string): (typeof starRegions)[number] {
+  if (/Portugal|United Kingdom|Spain/.test(location)) return "Europe";
+  if (/South Korea/.test(location)) return "Asia";
+  if (/Nigeria/.test(location)) return "Africa";
+  return "North America";
+}
+
 export function VideoExplorer() {
   const searchRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -132,13 +146,18 @@ export function VideoExplorer() {
   const [tvMode, setTvMode] = useState(false);
   const [activeTab, setActiveTab] = useState<MainTab>("Trending");
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<RankMode>("Featured");
+  const [videoSort, setVideoSort] = useState<VideoRankMode>("Featured");
+  const [starSort, setStarSort] = useState<StarRankMode>("Featured");
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [moodFilter, setMoodFilter] = useState("Any mood");
   const [durationFilter, setDurationFilter] = useState<DurationFilter>("Any duration");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("All sources");
   const [eraFilter, setEraFilter] = useState<EraFilter>("Any era");
+  const [selectedStarRoles, setSelectedStarRoles] = useState<string[]>([]);
+  const [selectedStarRegions, setSelectedStarRegions] = useState<string[]>([]);
+  const [selectedStarSpecialties, setSelectedStarSpecialties] = useState<string[]>([]);
+  const [starAppearanceFilter, setStarAppearanceFilter] = useState<StarAppearanceFilter>("Any appearances");
   const [displayPreferences, setDisplayPreferences] = useState<DisplayPreferences>(
     DEFAULT_DISPLAY_PREFERENCES,
   );
@@ -170,7 +189,7 @@ export function VideoExplorer() {
 
     if (new URLSearchParams(window.location.search).get("tab") === "stars") {
       setActiveTab("Stars");
-      setSort("Featured");
+      setStarSort("Featured");
     }
 
     if (new URLSearchParams(window.location.search).get("managerLogin") === "1") {
@@ -279,18 +298,27 @@ export function VideoExplorer() {
       return matchesLiked && (!deferredQuery || haystack.includes(deferredQuery));
     });
 
-    if (sort === "Newest") return [...matching].sort((a, b) => b.publishedYear - a.publishedYear || b.likeCount - a.likeCount);
-    if (sort === "Most liked") return [...matching].sort((a, b) => b.likeCount - a.likeCount);
-    if (sort === "Shortest") return [...matching].sort((a, b) => a.durationSeconds - b.durationSeconds);
-    if (sort === "Longest") return [...matching].sort((a, b) => b.durationSeconds - a.durationSeconds);
+    if (videoSort === "Newest") return [...matching].sort((a, b) => b.publishedYear - a.publishedYear || b.likeCount - a.likeCount);
+    if (videoSort === "Most liked") return [...matching].sort((a, b) => b.likeCount - a.likeCount);
+    if (videoSort === "Shortest") return [...matching].sort((a, b) => a.durationSeconds - b.durationSeconds);
+    if (videoSort === "Longest") return [...matching].sort((a, b) => b.durationSeconds - a.durationSeconds);
     return matching;
-  }, [activeTab, currentUser, deferredQuery, likedVideoIds, sort, videosMatchingFilters]);
+  }, [activeTab, currentUser, deferredQuery, likedVideoIds, videoSort, videosMatchingFilters]);
 
   const filteredStars = useMemo(() => {
     const entries = starProfiles.flatMap<StarDirectoryEntry>((profile) => {
-      const relatedVideos = videosMatchingFilters.filter((video) =>
+      const relatedVideos = videos.filter((video) =>
         getStarSlugsForVideo(video.id).includes(profile.slug),
       );
+      const matchesRole = selectedStarRoles.length === 0 || selectedStarRoles.includes(profile.role);
+      const profileRegion = regionForLocation(profile.location);
+      const matchesRegion = selectedStarRegions.length === 0 || selectedStarRegions.includes(profileRegion);
+      const matchesSpecialty = selectedStarSpecialties.length === 0 ||
+        selectedStarSpecialties.some((specialty) => profile.specialties.includes(specialty));
+      const matchesAppearances =
+        starAppearanceFilter === "Any appearances" ||
+        (starAppearanceFilter === "40+ stories" && relatedVideos.length >= 40) ||
+        (starAppearanceFilter === "Under 40 stories" && relatedVideos.length < 40);
       const profileText = `${profile.name} ${profile.role} ${profile.location} ${profile.specialties.join(" ")}`.toLowerCase();
       const matchesSearch =
         !deferredQuery ||
@@ -298,25 +326,29 @@ export function VideoExplorer() {
         relatedVideos.some((video) =>
           `${video.title} ${video.creator} ${video.tags.join(" ")}`.toLowerCase().includes(deferredQuery),
         );
-      if (!relatedVideos.length || !matchesSearch) return [];
+      if (
+        !relatedVideos.length ||
+        !matchesSearch ||
+        !matchesRole ||
+        !matchesRegion ||
+        !matchesSpecialty ||
+        !matchesAppearances
+      ) return [];
 
       return [{
         profile,
         appearances: relatedVideos.length,
         totalLikes: relatedVideos.reduce((total, video) => total + video.likeCount, 0),
         newestYear: Math.max(...relatedVideos.map((video) => video.publishedYear)),
-        averageDuration:
-          relatedVideos.reduce((total, video) => total + video.durationSeconds, 0) /
-          relatedVideos.length,
       }];
     });
 
-    if (sort === "Newest") return entries.sort((a, b) => b.newestYear - a.newestYear);
-    if (sort === "Most liked") return entries.sort((a, b) => b.totalLikes - a.totalLikes);
-    if (sort === "Shortest") return entries.sort((a, b) => a.averageDuration - b.averageDuration);
-    if (sort === "Longest") return entries.sort((a, b) => b.averageDuration - a.averageDuration);
+    if (starSort === "Name A–Z") return entries.sort((a, b) => a.profile.name.localeCompare(b.profile.name));
+    if (starSort === "Most appearances") return entries.sort((a, b) => b.appearances - a.appearances || b.totalLikes - a.totalLikes);
+    if (starSort === "Most liked") return entries.sort((a, b) => b.totalLikes - a.totalLikes);
+    if (starSort === "Newest work") return entries.sort((a, b) => b.newestYear - a.newestYear || b.totalLikes - a.totalLikes);
     return entries;
-  }, [deferredQuery, sort, videosMatchingFilters]);
+  }, [deferredQuery, selectedStarRegions, selectedStarRoles, selectedStarSpecialties, starAppearanceFilter, starSort]);
 
   const visibleVideos = useMemo(
     () => filteredVideos.slice(0, visibleCount),
@@ -329,7 +361,7 @@ export function VideoExplorer() {
     setFocusedIndex(0);
     setFocusedAction("open");
     pendingGridFocusRef.current = null;
-  }, [activeTab, deferredQuery, durationFilter, eraFilter, moodFilter, selectedCategories, sort, sourceFilter]);
+  }, [activeTab, deferredQuery, durationFilter, eraFilter, moodFilter, selectedCategories, sourceFilter, starAppearanceFilter, starSort, selectedStarRegions, selectedStarRoles, selectedStarSpecialties, videoSort]);
 
   useEffect(() => {
     const pendingFocus = pendingGridFocusRef.current;
@@ -389,12 +421,24 @@ export function VideoExplorer() {
     }
   };
 
-  const resetFilters = () => {
+  const resetVideoFilters = () => {
     setSelectedCategories([]);
     setMoodFilter("Any mood");
     setDurationFilter("Any duration");
     setSourceFilter("All sources");
     setEraFilter("Any era");
+  };
+
+  const resetStarFilters = () => {
+    setSelectedStarRoles([]);
+    setSelectedStarRegions([]);
+    setSelectedStarSpecialties([]);
+    setStarAppearanceFilter("Any appearances");
+  };
+
+  const resetActiveFilters = () => {
+    if (activeTab === "Stars") resetStarFilters();
+    else resetVideoFilters();
   };
 
   const toggleCategory = (nextCategory: string) => {
@@ -405,12 +449,18 @@ export function VideoExplorer() {
     );
   };
 
-  const activeFilterCount =
+  const activeVideoFilterCount =
     selectedCategories.length +
     Number(moodFilter !== "Any mood") +
     Number(durationFilter !== "Any duration") +
     Number(sourceFilter !== "All sources") +
     Number(eraFilter !== "Any era");
+  const activeStarFilterCount =
+    selectedStarRoles.length +
+    selectedStarRegions.length +
+    selectedStarSpecialties.length +
+    Number(starAppearanceFilter !== "Any appearances");
+  const activeFilterCount = activeTab === "Stars" ? activeStarFilterCount : activeVideoFilterCount;
 
   const updateDisplayPreferences = (preferences: DisplayPreferences) => {
     setDisplayPreferences(preferences);
@@ -424,19 +474,18 @@ export function VideoExplorer() {
   const selectTab = (tab: MainTab) => {
     setActiveTab(tab);
     if (tab === "Trending") {
-      setSort("Featured");
-      resetFilters();
+      setVideoSort("Featured");
+      resetVideoFilters();
     }
     if (tab === "Latest") {
-      setSort("Newest");
-      resetFilters();
+      setVideoSort("Newest");
+      resetVideoFilters();
     }
     if (tab === "Categories") {
       setFilterOpen(true);
     }
     if (tab === "Stars") {
-      resetFilters();
-      setSort("Featured");
+      setStarSort("Featured");
     }
     catalogRef.current?.scrollIntoView({ block: "start" });
   };
@@ -493,8 +542,8 @@ export function VideoExplorer() {
 
   const openLikedVideos = () => {
     setActiveTab("Liked");
-    resetFilters();
-    setSort("Featured");
+    resetVideoFilters();
+    setVideoSort("Featured");
     setAccountMenuOpen(false);
     catalogRef.current?.scrollIntoView({ block: "start" });
   };
@@ -687,7 +736,7 @@ export function VideoExplorer() {
             type="search"
             value={query}
             onChange={(event: ChangeEvent<HTMLInputElement>) => setQuery(event.target.value)}
-            placeholder="Search stories, creators, topics"
+            placeholder={activeTab === "Stars" ? "Search stars, roles, skills" : "Search stories, creators, topics"}
           />
           <kbd>/</kbd>
         </label>
@@ -779,6 +828,7 @@ export function VideoExplorer() {
                 {activeFilterCount > 0 && <span className="filter-trigger__count">{activeFilterCount}</span>}
               </button>
               <PreferencesPopover
+                view={activeTab === "Stars" ? "stars" : "videos"}
                 preferences={displayPreferences}
                 onChange={updateDisplayPreferences}
               />
@@ -791,13 +841,19 @@ export function VideoExplorer() {
                   : `${visibleVideos.length} of ${filteredVideos.length} stories`}
               </span>
               <label className="sort-control">
-                <span className="sort-control__label">Rank by</span>
+                <span className="sort-control__label">
+                  {activeTab === "Stars" ? "Rank stars by" : "Rank by"}
+                </span>
                 <select
-                  value={sort}
+                  value={activeTab === "Stars" ? starSort : videoSort}
                   aria-label={activeTab === "Stars" ? "Rank stars by" : "Rank videos by"}
-                  onChange={(event) => setSort(event.target.value as RankMode)}
+                  onChange={(event) => activeTab === "Stars"
+                    ? setStarSort(event.target.value as StarRankMode)
+                    : setVideoSort(event.target.value as VideoRankMode)}
                 >
-                  {rankModes.map((rankMode) => <option key={rankMode}>{rankMode}</option>)}
+                  {(activeTab === "Stars" ? starRankModes : videoRankModes).map((rankMode) => (
+                    <option key={rankMode}>{rankMode}</option>
+                  ))}
                 </select>
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
                   <path d="m8 10 4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -808,13 +864,18 @@ export function VideoExplorer() {
 
           {activeTab === "Stars" ? (
             filteredStars.length > 0 ? (
-              <StarDirectory entries={filteredStars} tvMode={tvMode} />
+              <StarDirectory
+                entries={filteredStars}
+                tvMode={tvMode}
+                columns={displayPreferences.starColumns}
+                details={displayPreferences.starMetadata}
+              />
             ) : (
               <div className="empty-state">
                 <span className="empty-state__icon"><SearchIcon /></span>
                 <h2>No stars found</h2>
-                <p>Try a broader search or reset the video filters.</p>
-                <button type="button" onClick={() => { setQuery(""); resetFilters(); }}>Clear filters</button>
+                <p>Try a broader search or reset the star filters.</p>
+                <button type="button" onClick={() => { setQuery(""); resetStarFilters(); }}>Clear filters</button>
               </div>
             )
           ) : activeTab === "Liked" && !currentUser ? (
@@ -924,9 +985,9 @@ export function VideoExplorer() {
                 type="button"
                 onClick={() => {
                   setQuery("");
-                  resetFilters();
+                  resetVideoFilters();
                   setActiveTab("Trending");
-                  setSort("Featured");
+                  setVideoSort("Featured");
                 }}
               >
                 {activeTab === "Liked" ? "Explore videos" : "Clear filters"}
@@ -962,8 +1023,8 @@ export function VideoExplorer() {
           >
             <header className="filter-drawer__header">
               <div>
-                <p>Discovery filters</p>
-                <h2 id="filter-title">Shape your feed</h2>
+                <p>{activeTab === "Stars" ? "Talent filters" : "Discovery filters"}</p>
+                <h2 id="filter-title">{activeTab === "Stars" ? "Find your stars" : "Shape your feed"}</h2>
               </div>
               <button
                 ref={filterCloseRef}
@@ -977,112 +1038,226 @@ export function VideoExplorer() {
             </header>
 
             <div className="filter-drawer__content">
-              <fieldset className="filter-group">
-                <legend className="filter-group__heading">
-                  <span>Categories</span>
-                  <small>Mix and match</small>
-                </legend>
-                <div className="filter-chip-grid">
-                  {categories.map((item) => {
-                    const selected = selectedCategories.includes(item);
-                    return (
-                      <button
-                        key={item}
-                        type="button"
-                        className={selected ? "is-selected" : ""}
-                        aria-pressed={selected}
-                        onClick={() => toggleCategory(item)}
-                      >
-                        <span>{item}</span>
-                        <span className="filter-chip__check" aria-hidden="true">
-                          <svg viewBox="0 0 16 16" width="13" height="13" fill="none">
-                            <path d="m3 8 3 3 7-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </fieldset>
+              {activeTab === "Stars" ? (
+                <>
+                  <fieldset className="filter-group">
+                    <legend className="filter-group__heading">
+                      <span>Role</span>
+                      <small>Select one or more</small>
+                    </legend>
+                    <div className="filter-chip-grid">
+                      {starRoles.map((item) => {
+                        const selected = selectedStarRoles.includes(item);
+                        return (
+                          <button
+                            key={item}
+                            type="button"
+                            className={selected ? "is-selected" : ""}
+                            aria-pressed={selected}
+                            onClick={() => setSelectedStarRoles((current) =>
+                              current.includes(item)
+                                ? current.filter((value) => value !== item)
+                                : [...current, item])}
+                          >
+                            <span>{item}</span>
+                            <span className="filter-chip__check" aria-hidden="true">
+                              <svg viewBox="0 0 16 16" width="13" height="13" fill="none">
+                                <path d="m3 8 3 3 7-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
 
-              <fieldset className="filter-group">
-                <legend className="filter-group__heading">
-                  <span>Mood</span>
-                  <small>Set the tone</small>
-                </legend>
-                <div className="filter-pill-list">
-                  {["Any mood", ...moods].map((item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      className={moodFilter === item ? "is-selected" : ""}
-                      aria-pressed={moodFilter === item}
-                      onClick={() => setMoodFilter(item)}
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
+                  <fieldset className="filter-group">
+                    <legend className="filter-group__heading">
+                      <span>Region</span>
+                      <small>Where they are based</small>
+                    </legend>
+                    <div className="filter-pill-list">
+                      {starRegions.map((item) => {
+                        const selected = selectedStarRegions.includes(item);
+                        return (
+                          <button
+                            key={item}
+                            type="button"
+                            className={selected ? "is-selected" : ""}
+                            aria-pressed={selected}
+                            onClick={() => setSelectedStarRegions((current) =>
+                              current.includes(item)
+                                ? current.filter((value) => value !== item)
+                                : [...current, item])}
+                          >
+                            {item}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
 
-              <fieldset className="filter-group">
-                <legend className="filter-group__heading">
-                  <span>Duration</span>
-                  <small>Match your time</small>
-                </legend>
-                <div className="filter-option-list">
-                  {durationFilters.map((item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      className={durationFilter === item ? "is-selected" : ""}
-                      aria-pressed={durationFilter === item}
-                      onClick={() => setDurationFilter(item)}
-                    >
-                      <span>{item}</span><span aria-hidden="true" />
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
+                  <fieldset className="filter-group">
+                    <legend className="filter-group__heading">
+                      <span>Specialties</span>
+                      <small>Creative skills</small>
+                    </legend>
+                    <div className="filter-chip-grid">
+                      {starSpecialties.map((item) => {
+                        const selected = selectedStarSpecialties.includes(item);
+                        return (
+                          <button
+                            key={item}
+                            type="button"
+                            className={selected ? "is-selected" : ""}
+                            aria-pressed={selected}
+                            onClick={() => setSelectedStarSpecialties((current) =>
+                              current.includes(item)
+                                ? current.filter((value) => value !== item)
+                                : [...current, item])}
+                          >
+                            <span>{item}</span>
+                            <span className="filter-chip__check" aria-hidden="true">
+                              <svg viewBox="0 0 16 16" width="13" height="13" fill="none">
+                                <path d="m3 8 3 3 7-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
 
-              <div className="filter-group--split">
-                <fieldset className="filter-group filter-group--compact">
-                  <legend className="filter-group__heading"><span>Source</span></legend>
-                  <div className="filter-option-list">
-                    {sourceFilters.map((item) => (
-                      <button
-                        key={item}
-                        type="button"
-                        className={sourceFilter === item ? "is-selected" : ""}
-                        aria-pressed={sourceFilter === item}
-                        onClick={() => setSourceFilter(item)}
-                      >
-                        <span>{item}</span><span aria-hidden="true" />
-                      </button>
-                    ))}
+                  <fieldset className="filter-group">
+                    <legend className="filter-group__heading">
+                      <span>Appearances</span>
+                      <small>Related stories</small>
+                    </legend>
+                    <div className="filter-option-list">
+                      {starAppearanceFilters.map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          className={starAppearanceFilter === item ? "is-selected" : ""}
+                          aria-pressed={starAppearanceFilter === item}
+                          onClick={() => setStarAppearanceFilter(item)}
+                        >
+                          <span>{item}</span><span aria-hidden="true" />
+                        </button>
+                      ))}
+                    </div>
+                  </fieldset>
+                </>
+              ) : (
+                <>
+                  <fieldset className="filter-group">
+                    <legend className="filter-group__heading">
+                      <span>Categories</span>
+                      <small>Mix and match</small>
+                    </legend>
+                    <div className="filter-chip-grid">
+                      {categories.map((item) => {
+                        const selected = selectedCategories.includes(item);
+                        return (
+                          <button
+                            key={item}
+                            type="button"
+                            className={selected ? "is-selected" : ""}
+                            aria-pressed={selected}
+                            onClick={() => toggleCategory(item)}
+                          >
+                            <span>{item}</span>
+                            <span className="filter-chip__check" aria-hidden="true">
+                              <svg viewBox="0 0 16 16" width="13" height="13" fill="none">
+                                <path d="m3 8 3 3 7-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+
+                  <fieldset className="filter-group">
+                    <legend className="filter-group__heading">
+                      <span>Mood</span>
+                      <small>Set the tone</small>
+                    </legend>
+                    <div className="filter-pill-list">
+                      {["Any mood", ...moods].map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          className={moodFilter === item ? "is-selected" : ""}
+                          aria-pressed={moodFilter === item}
+                          onClick={() => setMoodFilter(item)}
+                        >
+                          {item}
+                        </button>
+                      ))}
+                    </div>
+                  </fieldset>
+
+                  <fieldset className="filter-group">
+                    <legend className="filter-group__heading">
+                      <span>Duration</span>
+                      <small>Match your time</small>
+                    </legend>
+                    <div className="filter-option-list">
+                      {durationFilters.map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          className={durationFilter === item ? "is-selected" : ""}
+                          aria-pressed={durationFilter === item}
+                          onClick={() => setDurationFilter(item)}
+                        >
+                          <span>{item}</span><span aria-hidden="true" />
+                        </button>
+                      ))}
+                    </div>
+                  </fieldset>
+
+                  <div className="filter-group--split">
+                    <fieldset className="filter-group filter-group--compact">
+                      <legend className="filter-group__heading"><span>Source</span></legend>
+                      <div className="filter-option-list">
+                        {sourceFilters.map((item) => (
+                          <button
+                            key={item}
+                            type="button"
+                            className={sourceFilter === item ? "is-selected" : ""}
+                            aria-pressed={sourceFilter === item}
+                            onClick={() => setSourceFilter(item)}
+                          >
+                            <span>{item}</span><span aria-hidden="true" />
+                          </button>
+                        ))}
+                      </div>
+                    </fieldset>
+                    <fieldset className="filter-group filter-group--compact">
+                      <legend className="filter-group__heading"><span>Era</span></legend>
+                      <div className="filter-option-list">
+                        {eraFilters.map((item) => (
+                          <button
+                            key={item}
+                            type="button"
+                            className={eraFilter === item ? "is-selected" : ""}
+                            aria-pressed={eraFilter === item}
+                            onClick={() => setEraFilter(item)}
+                          >
+                            <span>{item}</span><span aria-hidden="true" />
+                          </button>
+                        ))}
+                      </div>
+                    </fieldset>
                   </div>
-                </fieldset>
-                <fieldset className="filter-group filter-group--compact">
-                  <legend className="filter-group__heading"><span>Era</span></legend>
-                  <div className="filter-option-list">
-                    {eraFilters.map((item) => (
-                      <button
-                        key={item}
-                        type="button"
-                        className={eraFilter === item ? "is-selected" : ""}
-                        aria-pressed={eraFilter === item}
-                        onClick={() => setEraFilter(item)}
-                      >
-                        <span>{item}</span><span aria-hidden="true" />
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
-              </div>
+                </>
+              )}
             </div>
 
             <footer className="filter-drawer__footer">
-              <button type="button" className="filter-reset" disabled={activeFilterCount === 0} onClick={resetFilters}>
+              <button type="button" className="filter-reset" disabled={activeFilterCount === 0} onClick={resetActiveFilters}>
                 Reset all
               </button>
               <button type="button" className="filter-apply" onClick={() => closeFilters()}>

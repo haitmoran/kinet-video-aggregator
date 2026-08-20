@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { StarPortrait } from "@/components/StarPortrait";
 import type { StarProfile } from "@/data/stars";
+import type { StarCardPreferences } from "@/lib/displayPreferences";
 import styles from "./StarDirectory.module.css";
 
 export type StarDirectoryEntry = {
@@ -11,7 +12,6 @@ export type StarDirectoryEntry = {
   appearances: number;
   totalLikes: number;
   newestYear: number;
-  averageDuration: number;
 };
 
 const compactNumber = new Intl.NumberFormat("en", {
@@ -27,13 +27,20 @@ const remoteKeys: Record<number, string> = {
   40: "ArrowDown",
 };
 
-function directoryColumns(tvMode: boolean): number {
-  if (tvMode || window.innerWidth >= 1024) return 4;
+function directoryColumns(tvMode: boolean, preferredColumns: number): number {
+  if (tvMode || window.innerWidth >= 1024) return preferredColumns;
   if (window.innerWidth >= 576) return 2;
   return 1;
 }
 
-export function StarDirectory({ entries, tvMode }: { entries: StarDirectoryEntry[]; tvMode: boolean }) {
+type StarDirectoryProps = {
+  entries: StarDirectoryEntry[];
+  tvMode: boolean;
+  columns: number;
+  details: StarCardPreferences;
+};
+
+export function StarDirectory({ entries, tvMode, columns, details }: StarDirectoryProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const [focusedIndex, setFocusedIndex] = useState(0);
 
@@ -49,12 +56,12 @@ export function StarDirectory({ entries, tvMode }: { entries: StarDirectoryEntry
     }
     if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(key)) return;
 
-    const columns = directoryColumns(tvMode);
+    const activeColumns = directoryColumns(tvMode, columns);
     let target = index;
-    if (key === "ArrowLeft" && index % columns !== 0) target -= 1;
-    if (key === "ArrowRight" && index % columns !== columns - 1) target += 1;
-    if (key === "ArrowUp") target -= columns;
-    if (key === "ArrowDown") target += columns;
+    if (key === "ArrowLeft" && index % activeColumns !== 0) target -= 1;
+    if (key === "ArrowRight" && index % activeColumns !== activeColumns - 1) target += 1;
+    if (key === "ArrowUp") target -= activeColumns;
+    if (key === "ArrowDown") target += activeColumns;
     if (target < 0 && key === "ArrowUp") {
       event.preventDefault();
       document.querySelector<HTMLElement>(".filter-trigger")?.focus();
@@ -80,6 +87,7 @@ export function StarDirectory({ entries, tvMode }: { entries: StarDirectoryEntry
           role="listitem"
           tabIndex={tvMode ? (focusedIndex === index ? 0 : -1) : 0}
           data-star-card-index={index}
+          aria-label={`${profile.name}, ${profile.role}, ${profile.location}`}
           aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Enter"
           onFocus={() => setFocusedIndex(index)}
           onKeyDown={(event) => handleKeyDown(event, index)}
@@ -88,14 +96,16 @@ export function StarDirectory({ entries, tvMode }: { entries: StarDirectoryEntry
           <div className={styles.shade} aria-hidden="true" />
           <span className={styles.prototype}>Demo profile</span>
           <div className={styles.copy}>
-            <p>{profile.role}</p>
-            <h2>{profile.name}</h2>
-            <span>{profile.location}</span>
-            <div className={styles.meta}>
-              <span>{appearances} stories</span>
-              <span>{compactNumber.format(totalLikes)} likes</span>
-              <span>Latest {newestYear}</span>
-            </div>
+            {details.role && <p>{profile.role}</p>}
+            {details.name && <h2>{profile.name}</h2>}
+            {details.location && <span>{profile.location}</span>}
+            {(details.appearances || details.likes || details.latest) && (
+              <div className={styles.meta}>
+                {details.appearances && <span>{appearances} stories</span>}
+                {details.likes && <span>{compactNumber.format(totalLikes)} likes</span>}
+                {details.latest && <span>Latest {newestYear}</span>}
+              </div>
+            )}
           </div>
         </Link>
       ))}

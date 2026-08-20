@@ -10,16 +10,28 @@ export type VideoMetadataPreferences = {
   duration: boolean;
 };
 
+export type StarCardPreferences = {
+  name: boolean;
+  role: boolean;
+  location: boolean;
+  appearances: boolean;
+  likes: boolean;
+  latest: boolean;
+};
+
 export type DisplayPreferences = {
   columns: 3 | 4 | 5 | 6;
+  starColumns: 2 | 3 | 4 | 5;
   textSize: TextSizePreference;
   metadata: VideoMetadataPreferences;
+  starMetadata: StarCardPreferences;
 };
 
 export const DISPLAY_PREFERENCES_KEY = "kinet-display-preferences-v1";
 
 export const DEFAULT_DISPLAY_PREFERENCES: DisplayPreferences = {
   columns: 5,
+  starColumns: 4,
   textSize: "default",
   metadata: {
     stars: true,
@@ -30,10 +42,22 @@ export const DEFAULT_DISPLAY_PREFERENCES: DisplayPreferences = {
     year: true,
     duration: true,
   },
+  starMetadata: {
+    name: true,
+    role: true,
+    location: true,
+    appearances: true,
+    likes: true,
+    latest: true,
+  },
 };
 
 function isColumnCount(value: unknown): value is DisplayPreferences["columns"] {
   return value === 3 || value === 4 || value === 5 || value === 6;
+}
+
+function isStarColumnCount(value: unknown): value is DisplayPreferences["starColumns"] {
+  return value === 2 || value === 3 || value === 4 || value === 5;
 }
 
 function isTextSize(value: unknown): value is TextSizePreference {
@@ -47,10 +71,14 @@ export function readDisplayPreferences(): DisplayPreferences {
     ) as Partial<DisplayPreferences>;
 
     const storedMetadata: Partial<VideoMetadataPreferences> = parsed.metadata ?? {};
+    const storedStarMetadata: Partial<StarCardPreferences> = parsed.starMetadata ?? {};
     return {
       columns: isColumnCount(parsed.columns)
         ? parsed.columns
         : DEFAULT_DISPLAY_PREFERENCES.columns,
+      starColumns: isStarColumnCount(parsed.starColumns)
+        ? parsed.starColumns
+        : DEFAULT_DISPLAY_PREFERENCES.starColumns,
       textSize: isTextSize(parsed.textSize)
         ? parsed.textSize
         : DEFAULT_DISPLAY_PREFERENCES.textSize,
@@ -63,6 +91,14 @@ export function readDisplayPreferences(): DisplayPreferences {
         year: typeof storedMetadata.year === "boolean" ? storedMetadata.year : true,
         duration: typeof storedMetadata.duration === "boolean" ? storedMetadata.duration : true,
       },
+      starMetadata: {
+        name: typeof storedStarMetadata.name === "boolean" ? storedStarMetadata.name : true,
+        role: typeof storedStarMetadata.role === "boolean" ? storedStarMetadata.role : true,
+        location: typeof storedStarMetadata.location === "boolean" ? storedStarMetadata.location : true,
+        appearances: typeof storedStarMetadata.appearances === "boolean" ? storedStarMetadata.appearances : true,
+        likes: typeof storedStarMetadata.likes === "boolean" ? storedStarMetadata.likes : true,
+        latest: typeof storedStarMetadata.latest === "boolean" ? storedStarMetadata.latest : true,
+      },
     };
   } catch {
     return DEFAULT_DISPLAY_PREFERENCES;
@@ -74,6 +110,10 @@ export function applyDisplayPreferences(preferences: DisplayPreferences): void {
   document.documentElement.style.setProperty(
     "--preferred-video-columns",
     String(preferences.columns),
+  );
+  document.documentElement.style.setProperty(
+    "--preferred-star-columns",
+    String(preferences.starColumns),
   );
 }
 

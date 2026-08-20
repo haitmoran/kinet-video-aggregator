@@ -17,11 +17,14 @@ const themeBootScript = `
     const display = JSON.parse(localStorage.getItem('kinet-display-preferences-v1') || '{}');
     const textSize = ['small', 'default', 'large'].includes(display.textSize) ? display.textSize : 'default';
     const columns = [3, 4, 5, 6].includes(display.columns) ? display.columns : 5;
+    const starColumns = [2, 3, 4, 5].includes(display.starColumns) ? display.starColumns : 4;
     document.documentElement.dataset.textSize = textSize;
     document.documentElement.style.setProperty('--preferred-video-columns', String(columns));
+    document.documentElement.style.setProperty('--preferred-star-columns', String(starColumns));
   } catch (_) {
     document.documentElement.dataset.textSize = 'default';
     document.documentElement.style.setProperty('--preferred-video-columns', '5');
+    document.documentElement.style.setProperty('--preferred-star-columns', '4');
   }
 `;
 

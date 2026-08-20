@@ -59,6 +59,10 @@
   padding: clamp(20px, 3vw, 36px);
 }
 
+.copy > :first-child {
+  margin-top: 0;
+}
+
 .copy > p {
   margin: 0 0 7px;
   color: rgb(255 255 255 / 76%);
@@ -115,7 +119,7 @@
 
 @media (min-width: 64rem) {
   .grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--preferred-star-columns, 4), minmax(0, 1fr));
   }
 
   .card {
@@ -138,7 +142,7 @@
 }
 
 :global(html[data-tv="true"]) .grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--preferred-star-columns, 4), minmax(0, 1fr));
   gap: clamp(14px, 1vw, 22px);
 }
 
