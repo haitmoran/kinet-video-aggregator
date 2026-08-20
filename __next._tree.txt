@@ -1,0 +1,3 @@
+:HL["/kinet-video-aggregator/_next/static/chunks/35as5p06ra8sy.css","style"]
+:HL["/kinet-video-aggregator/_next/static/chunks/1amt-29d2mcjp.css","style"]
+0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}},"staleTime":300,"buildId":"HpM9DDZqvw--EdZcuCVKD"}
