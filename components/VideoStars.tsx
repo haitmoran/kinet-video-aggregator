@@ -45,23 +45,21 @@ function positionPreviewTray(
   const cardBounds = card?.getBoundingClientRect() ?? trigger.getBoundingClientRect();
   const gutter = 12;
   const gap = 12;
+  const tvMode = document.documentElement.dataset.tv === "true";
   const topbarBottom = document.querySelector<HTMLElement>(".topbar")
     ?.getBoundingClientRect().bottom ?? 0;
   const safeTop = Math.max(gutter, topbarBottom + 10);
-  const tvMode = document.documentElement.dataset.tv === "true";
   const idealWidth = tvMode ? 520 : 380;
   const maximumHeight = Math.max(1, window.innerHeight - safeTop - gutter);
   const dialogHeight = Math.min(measuredHeight, maximumHeight);
-  const availableRight = Math.max(0, window.innerWidth - cardBounds.right - gap - gutter);
-  const availableLeft = Math.max(0, cardBounds.left - gap - gutter);
-  const widestSide = Math.max(availableRight, availableLeft);
 
-  if (window.innerWidth >= 700 && widestSide >= 240) {
-    const placement: PopoverPlacement = availableRight >= availableLeft
-      ? "upper-right"
-      : "upper-left";
-    const availableWidth = placement === "upper-right" ? availableRight : availableLeft;
-    const width = Math.min(idealWidth, availableWidth);
+  if (window.innerWidth >= 700) {
+    const width = Math.min(idealWidth, window.innerWidth - gutter * 2);
+    const rightEdgeLeft = window.innerWidth - width - gutter;
+    const panelOverlapsSelectedCard = rightEdgeLeft < cardBounds.right + gap;
+    const placement: PopoverPlacement = panelOverlapsSelectedCard
+      ? "upper-left"
+      : "upper-right";
     return {
       top: Math.max(
         safeTop,
@@ -71,8 +69,8 @@ function positionPreviewTray(
         ),
       ),
       left: placement === "upper-right"
-        ? cardBounds.right + gap
-        : cardBounds.left - gap - width,
+        ? rightEdgeLeft
+        : gutter,
       width,
       maxHeight: maximumHeight,
       placement,
@@ -290,13 +288,14 @@ export function VideoStars({
             <div className={styles.actions}>
               <button
                 ref={loveButtonRef}
-                className={`${styles.love} ${lovedStarSlugs.has(activeStar.slug) ? styles.loved : ""}`}
+                className={`video-card__like ${styles.popupLove} ${lovedStarSlugs.has(activeStar.slug) ? "is-liked" : ""}`}
                 type="button"
                 aria-pressed={lovedStarSlugs.has(activeStar.slug)}
                 aria-label={lovedStarSlugs.has(activeStar.slug)
                   ? `Remove ${activeStar.name} from loved stars`
                   : `Love ${activeStar.name}`}
                 title={lovedStarSlugs.has(activeStar.slug) ? "Remove from loved stars" : "Love this star"}
+                data-focus-label={lovedStarSlugs.has(activeStar.slug) ? "Remove love" : "Love star"}
                 onClick={() => {
                   const changed = onToggleStarLove(activeStar.slug);
                   if (!changed) closeProfile(false);
@@ -305,7 +304,6 @@ export function VideoStars({
                 <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
                   <path d="M12 20.3 4.2 12.8A4.8 4.8 0 0 1 11 6l1 1 1-1a4.8 4.8 0 0 1 6.8 6.8L12 20.3Z" />
                 </svg>
-                <span>{lovedStarSlugs.has(activeStar.slug) ? "Loved" : "Love"}</span>
               </button>
 
               <button

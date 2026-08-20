@@ -121,8 +121,7 @@
   gap: 7px;
 }
 
-.close,
-.love {
+.close {
   height: 34px;
   border: 1px solid rgb(255 255 255 / 45%);
   background: rgb(17 24 39 / 68%);
@@ -139,51 +138,19 @@
   border-radius: 50%;
 }
 
-.love {
-  display: inline-flex;
-  min-width: 76px;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border-radius: 999px;
-  padding: 0 11px;
-  font-size: 0.67rem;
-  font-weight: 800;
-  letter-spacing: 0.01em;
+.actions .popupLove {
+  position: relative;
+  z-index: auto;
+  top: auto;
+  right: auto;
+  flex: 0 0 auto;
 }
 
-.love svg path {
-  fill: transparent;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linejoin: round;
-  transition: fill 140ms ease, transform 140ms ease;
-}
-
-.love:hover svg path {
-  transform: scale(1.08);
-}
-
-.love.loved {
-  border-color: rgb(255 255 255 / 72%);
-  background: var(--accent);
-}
-
-.love.loved svg path {
-  fill: currentColor;
-}
-
-.close:hover,
-.love:hover {
+.close:hover {
   background: #111827;
 }
 
-.love.loved:hover {
-  background: color-mix(in srgb, var(--accent) 84%, #111827);
-}
-
 .close:focus-visible,
-.love:focus-visible,
 .profileLink:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 3px;
