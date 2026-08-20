@@ -12,7 +12,7 @@ import {
 } from "react";
 import { AuthDialog, type AuthMode } from "@/components/AuthDialog";
 import { VideoCard } from "@/components/VideoCard";
-import { categories, videos } from "@/data/videos";
+import { categories, moods, videos } from "@/data/videos";
 import {
   getLikedVideoIds,
   getSession,
@@ -23,9 +23,17 @@ import {
 
 type Theme = "light" | "dark";
 type MainTab = "Trending" | "Latest" | "Categories" | "Stars";
+type RankMode = "Featured" | "Newest" | "Most liked" | "Shortest" | "Longest";
+type DurationFilter = "Any duration" | "Under 3 min" | "3–6 min" | "6–12 min" | "12+ min";
+type SourceFilter = "All sources" | "Internet Archive" | "MDN";
+type EraFilter = "Any era" | "Before 2010" | "2010s" | "2020s";
 
 const PAGE_SIZE = 24;
 const mainTabs: MainTab[] = ["Trending", "Latest", "Categories", "Stars"];
+const rankModes: RankMode[] = ["Featured", "Newest", "Most liked", "Shortest", "Longest"];
+const durationFilters: DurationFilter[] = ["Any duration", "Under 3 min", "3–6 min", "6–12 min", "12+ min"];
+const sourceFilters: SourceFilter[] = ["All sources", "Internet Archive", "MDN"];
+const eraFilters: EraFilter[] = ["Any era", "Before 2010", "2010s", "2020s"];
 
 function SearchIcon() {
   return (
@@ -62,6 +70,22 @@ function TvIcon() {
   );
 }
 
+function FilterIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="19" height="19" fill="none" aria-hidden="true">
+      <path d="M4 6h16M7 12h10M10 18h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
+      <path d="m6.5 6.5 11 11M17.5 6.5l-11 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function columnCount(): number {
   const width = window.innerWidth;
   if (width < 480) return 1;
@@ -76,16 +100,23 @@ export function VideoExplorer() {
   const searchRef = useRef<HTMLInputElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const catalogRef = useRef<HTMLElement>(null);
-  const categoryBarRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const accountRef = useRef<HTMLDivElement>(null);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
+  const filterDrawerRef = useRef<HTMLElement>(null);
+  const filterCloseRef = useRef<HTMLButtonElement>(null);
 
   const [theme, setTheme] = useState<Theme>("light");
   const [tvMode, setTvMode] = useState(false);
   const [activeTab, setActiveTab] = useState<MainTab>("Trending");
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("All");
-  const [sort, setSort] = useState("Trending");
+  const [sort, setSort] = useState<RankMode>("Featured");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [moodFilter, setMoodFilter] = useState("Any mood");
+  const [durationFilter, setDurationFilter] = useState<DurationFilter>("Any duration");
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("All sources");
+  const [eraFilter, setEraFilter] = useState<EraFilter>("Any era");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [currentUser, setCurrentUser] = useState<SessionUser | null>(null);
@@ -95,6 +126,11 @@ export function VideoExplorer() {
   const [pendingLikeId, setPendingLikeId] = useState<string | null>(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
+
+  const closeFilters = useCallback((restoreFocus = true) => {
+    setFilterOpen(false);
+    if (restoreFocus) window.setTimeout(() => filterButtonRef.current?.focus(), 0);
+  }, []);
 
   useEffect(() => {
     setTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
@@ -117,6 +153,44 @@ export function VideoExplorer() {
   }, [accountMenuOpen]);
 
   useEffect(() => {
+    if (!filterOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.setTimeout(() => filterCloseRef.current?.focus(), 0);
+
+    const handleFilterKeys = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeFilters();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+      const focusable = filterDrawerRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), select:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleFilterKeys);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.removeEventListener("keydown", handleFilterKeys);
+    };
+  }, [closeFilters, filterOpen]);
+
+  useEffect(() => {
     const shortcut = (event: globalThis.KeyboardEvent) => {
       if (event.key === "/" && document.activeElement?.tagName !== "INPUT") {
         event.preventDefault();
@@ -130,19 +204,42 @@ export function VideoExplorer() {
 
   const filteredVideos = useMemo(() => {
     const matching = videos.filter((video) => {
-      const matchesCategory = category === "All" || video.category === category;
+      const matchesCategories =
+        selectedCategories.length === 0 ||
+        selectedCategories.some((selectedCategory) => video.tags.includes(selectedCategory));
+      const matchesMood = moodFilter === "Any mood" || video.mood === moodFilter;
+      const matchesDuration =
+        durationFilter === "Any duration" ||
+        (durationFilter === "Under 3 min" && video.durationSeconds < 180) ||
+        (durationFilter === "3–6 min" && video.durationSeconds >= 180 && video.durationSeconds < 360) ||
+        (durationFilter === "6–12 min" && video.durationSeconds >= 360 && video.durationSeconds < 720) ||
+        (durationFilter === "12+ min" && video.durationSeconds >= 720);
+      const matchesSource = sourceFilter === "All sources" || video.platform === sourceFilter;
+      const matchesEra =
+        eraFilter === "Any era" ||
+        (eraFilter === "Before 2010" && video.publishedYear < 2010) ||
+        (eraFilter === "2010s" && video.publishedYear >= 2010 && video.publishedYear < 2020) ||
+        (eraFilter === "2020s" && video.publishedYear >= 2020);
       const matchesStars =
         activeTab !== "Stars" || Boolean(currentUser && likedVideoIds.has(video.id));
-      const haystack = `${video.title} ${video.creator} ${video.platform} ${video.category}`.toLowerCase();
-      return matchesCategory && matchesStars && (!deferredQuery || haystack.includes(deferredQuery));
+      const haystack = `${video.title} ${video.creator} ${video.platform} ${video.category} ${video.tags.join(" ")} ${video.mood}`.toLowerCase();
+      return (
+        matchesCategories &&
+        matchesMood &&
+        matchesDuration &&
+        matchesSource &&
+        matchesEra &&
+        matchesStars &&
+        (!deferredQuery || haystack.includes(deferredQuery))
+      );
     });
 
-    if (sort === "Newest") return [...matching].reverse();
-    if (sort === "Shortest") {
-      return [...matching].sort((a, b) => a.duration.localeCompare(b.duration));
-    }
+    if (sort === "Newest") return [...matching].sort((a, b) => b.publishedYear - a.publishedYear || b.likeCount - a.likeCount);
+    if (sort === "Most liked") return [...matching].sort((a, b) => b.likeCount - a.likeCount);
+    if (sort === "Shortest") return [...matching].sort((a, b) => a.durationSeconds - b.durationSeconds);
+    if (sort === "Longest") return [...matching].sort((a, b) => b.durationSeconds - a.durationSeconds);
     return matching;
-  }, [activeTab, category, currentUser, deferredQuery, likedVideoIds, sort]);
+  }, [activeTab, currentUser, deferredQuery, durationFilter, eraFilter, likedVideoIds, moodFilter, selectedCategories, sort, sourceFilter]);
 
   const visibleVideos = useMemo(
     () => filteredVideos.slice(0, visibleCount),
@@ -153,7 +250,7 @@ export function VideoExplorer() {
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
     setFocusedIndex(0);
-  }, [activeTab, category, deferredQuery, sort]);
+  }, [activeTab, deferredQuery, durationFilter, eraFilter, moodFilter, selectedCategories, sort, sourceFilter]);
 
   useEffect(() => {
     const sentinel = loadMoreRef.current;
@@ -191,22 +288,45 @@ export function VideoExplorer() {
     }
   };
 
+  const resetFilters = () => {
+    setSelectedCategories([]);
+    setMoodFilter("Any mood");
+    setDurationFilter("Any duration");
+    setSourceFilter("All sources");
+    setEraFilter("Any era");
+  };
+
+  const toggleCategory = (nextCategory: string) => {
+    setSelectedCategories((current) =>
+      current.includes(nextCategory)
+        ? current.filter((item) => item !== nextCategory)
+        : [...current, nextCategory],
+    );
+  };
+
+  const activeFilterCount =
+    selectedCategories.length +
+    Number(moodFilter !== "Any mood") +
+    Number(durationFilter !== "Any duration") +
+    Number(sourceFilter !== "All sources") +
+    Number(eraFilter !== "Any era");
+
   const selectTab = (tab: MainTab) => {
     setActiveTab(tab);
     if (tab === "Trending") {
-      setSort("Trending");
-      setCategory("All");
+      setSort("Featured");
+      resetFilters();
     }
     if (tab === "Latest") {
       setSort("Newest");
-      setCategory("All");
+      resetFilters();
     }
     if (tab === "Categories") {
-      window.setTimeout(() => categoryBarRef.current?.scrollIntoView({ block: "center" }), 0);
+      setFilterOpen(true);
     }
     if (tab === "Stars") {
-      setCategory("All");
-      setSort("Trending");
+      resetFilters();
+      setSort("Featured");
     }
     catalogRef.current?.scrollIntoView({ block: "start" });
   };
@@ -282,19 +402,6 @@ export function VideoExplorer() {
     nextCard?.focus();
     nextCard?.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
   };
-
-  const title =
-    activeTab === "Latest"
-      ? "The latest stories"
-      : activeTab === "Categories"
-        ? category === "All"
-          ? "Browse every category"
-          : category
-        : activeTab === "Stars"
-          ? currentUser
-            ? "Your liked videos"
-            : "Your Stars collection"
-          : "Trending across the web";
 
   return (
     <div className="site-frame">
@@ -397,51 +504,38 @@ export function VideoExplorer() {
       </header>
 
       <main id="top">
-        <section ref={catalogRef} className="catalog" id="catalog" aria-labelledby="catalog-title">
+        <section ref={catalogRef} className="catalog" id="catalog" aria-label="Video catalog">
           <div className="catalog__header">
-            <div>
-              <p className="section-kicker">{activeTab}</p>
-              <h1 id="catalog-title">{title}</h1>
-            </div>
+            <button
+              ref={filterButtonRef}
+              className={`filter-trigger ${activeFilterCount > 0 ? "has-filters" : ""}`}
+              type="button"
+              aria-expanded={filterOpen}
+              aria-controls="filter-drawer"
+              onClick={() => setFilterOpen(true)}
+            >
+              <FilterIcon />
+              <span>Filters</span>
+              {activeFilterCount > 0 && <span className="filter-trigger__count">{activeFilterCount}</span>}
+            </button>
             <div className="catalog__tools">
               <span className="result-count">
                 {visibleVideos.length} of {filteredVideos.length} stories
               </span>
               <label className="sort-control">
-                <span className="sr-only">Sort videos</span>
+                <span className="sort-control__label">Rank by</span>
                 <select
                   value={sort}
-                  onChange={(event) => {
-                    setSort(event.target.value);
-                    if (event.target.value === "Newest") setActiveTab("Latest");
-                  }}
+                  aria-label="Rank videos by"
+                  onChange={(event) => setSort(event.target.value as RankMode)}
                 >
-                  <option>Trending</option>
-                  <option>Newest</option>
-                  <option>Shortest</option>
+                  {rankModes.map((rankMode) => <option key={rankMode}>{rankMode}</option>)}
                 </select>
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
                   <path d="m8 10 4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </label>
             </div>
-          </div>
-
-          <div ref={categoryBarRef} className="category-bar" role="toolbar" aria-label="Video categories">
-            {categories.map((item) => (
-              <button
-                key={item}
-                type="button"
-                className={category === item ? "is-active" : ""}
-                aria-pressed={category === item}
-                onClick={() => {
-                  setCategory(item);
-                  setActiveTab("Categories");
-                }}
-              >
-                {item}
-              </button>
-            ))}
           </div>
 
           {activeTab === "Stars" && !currentUser ? (
@@ -516,8 +610,9 @@ export function VideoExplorer() {
                 type="button"
                 onClick={() => {
                   setQuery("");
-                  setCategory("All");
+                  resetFilters();
                   setActiveTab("Trending");
+                  setSort("Featured");
                 }}
               >
                 {activeTab === "Stars" ? "Explore videos" : "Clear filters"}
@@ -539,6 +634,150 @@ export function VideoExplorer() {
           <a href="#catalog">Privacy</a>
         </div>
       </footer>
+
+      {filterOpen && (
+        <>
+          <div className="filter-scrim" aria-hidden="true" onPointerDown={() => closeFilters()} />
+          <aside
+            ref={filterDrawerRef}
+            className="filter-drawer"
+            id="filter-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="filter-title"
+          >
+            <header className="filter-drawer__header">
+              <div>
+                <p>Discovery filters</p>
+                <h2 id="filter-title">Shape your feed</h2>
+              </div>
+              <button
+                ref={filterCloseRef}
+                className="filter-drawer__close"
+                type="button"
+                aria-label="Close filters"
+                onClick={() => closeFilters()}
+              >
+                <CloseIcon />
+              </button>
+            </header>
+
+            <div className="filter-drawer__content">
+              <fieldset className="filter-group">
+                <legend className="filter-group__heading">
+                  <span>Categories</span>
+                  <small>Mix and match</small>
+                </legend>
+                <div className="filter-chip-grid">
+                  {categories.map((item) => {
+                    const selected = selectedCategories.includes(item);
+                    return (
+                      <button
+                        key={item}
+                        type="button"
+                        className={selected ? "is-selected" : ""}
+                        aria-pressed={selected}
+                        onClick={() => toggleCategory(item)}
+                      >
+                        <span>{item}</span>
+                        <span className="filter-chip__check" aria-hidden="true">
+                          <svg viewBox="0 0 16 16" width="13" height="13" fill="none">
+                            <path d="m3 8 3 3 7-7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
+              <fieldset className="filter-group">
+                <legend className="filter-group__heading">
+                  <span>Mood</span>
+                  <small>Set the tone</small>
+                </legend>
+                <div className="filter-pill-list">
+                  {["Any mood", ...moods].map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      className={moodFilter === item ? "is-selected" : ""}
+                      aria-pressed={moodFilter === item}
+                      onClick={() => setMoodFilter(item)}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <fieldset className="filter-group">
+                <legend className="filter-group__heading">
+                  <span>Duration</span>
+                  <small>Match your time</small>
+                </legend>
+                <div className="filter-option-list">
+                  {durationFilters.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      className={durationFilter === item ? "is-selected" : ""}
+                      aria-pressed={durationFilter === item}
+                      onClick={() => setDurationFilter(item)}
+                    >
+                      <span>{item}</span><span aria-hidden="true" />
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <div className="filter-group--split">
+                <fieldset className="filter-group filter-group--compact">
+                  <legend className="filter-group__heading"><span>Source</span></legend>
+                  <div className="filter-option-list">
+                    {sourceFilters.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        className={sourceFilter === item ? "is-selected" : ""}
+                        aria-pressed={sourceFilter === item}
+                        onClick={() => setSourceFilter(item)}
+                      >
+                        <span>{item}</span><span aria-hidden="true" />
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+                <fieldset className="filter-group filter-group--compact">
+                  <legend className="filter-group__heading"><span>Era</span></legend>
+                  <div className="filter-option-list">
+                    {eraFilters.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        className={eraFilter === item ? "is-selected" : ""}
+                        aria-pressed={eraFilter === item}
+                        onClick={() => setEraFilter(item)}
+                      >
+                        <span>{item}</span><span aria-hidden="true" />
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+              </div>
+            </div>
+
+            <footer className="filter-drawer__footer">
+              <button type="button" className="filter-reset" disabled={activeFilterCount === 0} onClick={resetFilters}>
+                Reset all
+              </button>
+              <button type="button" className="filter-apply" onClick={() => closeFilters()}>
+                Show {filteredVideos.length} {filteredVideos.length === 1 ? "video" : "videos"}
+              </button>
+            </footer>
+          </aside>
+        </>
+      )}
 
       <AuthDialog
         open={authOpen}

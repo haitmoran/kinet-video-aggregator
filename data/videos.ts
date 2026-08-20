@@ -4,9 +4,14 @@ export type VideoItem = {
   id: string;
   title: string;
   category: string;
+  tags: string[];
+  mood: string;
   platform: VideoPlatform;
   creator: string;
   duration: string;
+  durationSeconds: number;
+  publishedYear: number;
+  likeCount: number;
   views: string;
   age: string;
   thumbnail: string;
@@ -21,9 +26,14 @@ const seeds: VideoSeed[] = [
   {
     title: "Big Buck Bunny",
     category: "Animation",
+    tags: ["Animation", "Comedy", "Family", "Open Movie", "3D"],
+    mood: "Playful",
     platform: "Internet Archive",
     creator: "Blender Foundation",
     duration: "09:56",
+    durationSeconds: 596,
+    publishedYear: 2008,
+    likeCount: 18400,
     views: "Open movie",
     age: "2008",
     thumbnail: "thumbnails/01.webp?v=real1",
@@ -34,9 +44,14 @@ const seeds: VideoSeed[] = [
   {
     title: "Elephants Dream",
     category: "Animation",
+    tags: ["Animation", "Experimental", "Sci-Fi", "Open Movie", "3D"],
+    mood: "Dark",
     platform: "Internet Archive",
     creator: "Orange Open Movie",
     duration: "10:53",
+    durationSeconds: 653,
+    publishedYear: 2006,
+    likeCount: 11200,
     views: "Open movie",
     age: "2006",
     thumbnail: "thumbnails/02.webp?v=real1",
@@ -47,9 +62,14 @@ const seeds: VideoSeed[] = [
   {
     title: "Sintel",
     category: "Fantasy",
+    tags: ["Animation", "Fantasy", "Adventure", "Drama", "Open Movie", "3D"],
+    mood: "Epic",
     platform: "Internet Archive",
     creator: "Durian Open Movie",
     duration: "14:48",
+    durationSeconds: 888,
+    publishedYear: 2010,
+    likeCount: 25700,
     views: "Open movie",
     age: "2010",
     thumbnail: "thumbnails/03.webp?v=real1",
@@ -60,9 +80,14 @@ const seeds: VideoSeed[] = [
   {
     title: "Tears of Steel",
     category: "Sci-Fi",
+    tags: ["Sci-Fi", "Action", "Visual Effects", "Drama", "Open Movie"],
+    mood: "Epic",
     platform: "Internet Archive",
     creator: "Mango Open Movie",
     duration: "12:14",
+    durationSeconds: 734,
+    publishedYear: 2012,
+    likeCount: 19800,
     views: "Open movie",
     age: "2012",
     thumbnail: "thumbnails/04.webp?v=real1",
@@ -73,9 +98,14 @@ const seeds: VideoSeed[] = [
   {
     title: "Cosmos Laundromat",
     category: "Fantasy",
+    tags: ["Animation", "Fantasy", "Drama", "Open Movie", "3D"],
+    mood: "Thoughtful",
     platform: "Internet Archive",
     creator: "Gooseberry Open Movie",
     duration: "12:10",
+    durationSeconds: 730,
+    publishedYear: 2015,
+    likeCount: 14600,
     views: "Open movie",
     age: "2015",
     thumbnail: "thumbnails/05.webp?v=real1",
@@ -86,9 +116,14 @@ const seeds: VideoSeed[] = [
   {
     title: "Spring",
     category: "Fantasy",
+    tags: ["Animation", "Fantasy", "Nature", "Family", "3D"],
+    mood: "Inspiring",
     platform: "Internet Archive",
     creator: "Blender Animation Studio",
     duration: "07:44",
+    durationSeconds: 464,
+    publishedYear: 2019,
+    likeCount: 22100,
     views: "Open movie",
     age: "2019",
     thumbnail: "thumbnails/06.webp?v=real1",
@@ -99,9 +134,14 @@ const seeds: VideoSeed[] = [
   {
     title: "Agent 327: Operation Barbershop",
     category: "Comedy",
+    tags: ["Animation", "Comedy", "Action", "Short Film", "3D"],
+    mood: "Playful",
     platform: "Internet Archive",
     creator: "Blender Animation Studio",
     duration: "03:52",
+    durationSeconds: 232,
+    publishedYear: 2017,
+    likeCount: 13100,
     views: "Animated short",
     age: "2017",
     thumbnail: "thumbnails/07.webp?v=real1",
@@ -112,9 +152,14 @@ const seeds: VideoSeed[] = [
   {
     title: "Coffee Run",
     category: "Comedy",
+    tags: ["Animation", "Comedy", "Character Study", "Short Film", "3D"],
+    mood: "Feel-good",
     platform: "Internet Archive",
     creator: "Hjalti Hjálmarsson",
     duration: "03:15",
+    durationSeconds: 195,
+    publishedYear: 2020,
+    likeCount: 17400,
     views: "Animated short",
     age: "2020",
     thumbnail: "thumbnails/08.webp?v=real1",
@@ -125,9 +170,14 @@ const seeds: VideoSeed[] = [
   {
     title: "Wing It!",
     category: "Comedy",
+    tags: ["Animation", "Comedy", "Sci-Fi", "Short Film", "3D"],
+    mood: "Playful",
     platform: "Internet Archive",
     creator: "Blender Studio",
     duration: "03:48",
+    durationSeconds: 228,
+    publishedYear: 2023,
+    likeCount: 20900,
     views: "Animated short",
     age: "2023",
     thumbnail: "thumbnails/09.webp?v=real1",
@@ -138,9 +188,14 @@ const seeds: VideoSeed[] = [
   {
     title: "Sprite Fright",
     category: "Comedy",
+    tags: ["Animation", "Comedy", "Fantasy", "Open Movie", "3D"],
+    mood: "Dark",
     platform: "Internet Archive",
     creator: "Blender Studio",
     duration: "10:20",
+    durationSeconds: 620,
+    publishedYear: 2021,
+    likeCount: 23800,
     views: "Open movie",
     age: "2021",
     thumbnail: "thumbnails/10.webp?v=real1",
@@ -151,9 +206,14 @@ const seeds: VideoSeed[] = [
   {
     title: "Charge",
     category: "Sci-Fi",
+    tags: ["Animation", "Sci-Fi", "Action", "Short Film", "3D"],
+    mood: "Epic",
     platform: "Internet Archive",
     creator: "Blender Studio",
     duration: "04:20",
+    durationSeconds: 260,
+    publishedYear: 2022,
+    likeCount: 19600,
     views: "Open movie",
     age: "2022",
     thumbnail: "thumbnails/11.webp?v=real1",
@@ -164,9 +224,14 @@ const seeds: VideoSeed[] = [
   {
     title: "Caminandes 3: Llamigos",
     category: "Adventure",
+    tags: ["Animation", "Comedy", "Family", "Adventure", "Short Film", "3D"],
+    mood: "Feel-good",
     platform: "Internet Archive",
     creator: "Pablo Vazquez",
     duration: "02:30",
+    durationSeconds: 150,
+    publishedYear: 2016,
+    likeCount: 12400,
     views: "Animated short",
     age: "2016",
     thumbnail: "thumbnails/12.webp?v=real1",
@@ -177,9 +242,14 @@ const seeds: VideoSeed[] = [
   {
     title: "Caminandes 1: Llama Drama",
     category: "Adventure",
+    tags: ["Animation", "Comedy", "Family", "Adventure", "Short Film", "3D"],
+    mood: "Playful",
     platform: "Internet Archive",
     creator: "Pablo Vazquez",
     duration: "01:30",
+    durationSeconds: 90,
+    publishedYear: 2013,
+    likeCount: 9800,
     views: "Animated short",
     age: "2013",
     thumbnail: "thumbnails/13.webp?v=real1",
@@ -190,9 +260,14 @@ const seeds: VideoSeed[] = [
   {
     title: "Hero",
     category: "Experimental",
+    tags: ["Animation", "Experimental", "Character Study", "Short Film", "3D"],
+    mood: "Inspiring",
     platform: "Internet Archive",
     creator: "Daniel Martínez Lara",
     duration: "04:00",
+    durationSeconds: 240,
+    publishedYear: 2018,
+    likeCount: 8700,
     views: "Open movie",
     age: "2018",
     thumbnail: "thumbnails/14.webp?v=real1",
@@ -203,9 +278,14 @@ const seeds: VideoSeed[] = [
   {
     title: "Flower in Bloom",
     category: "Nature",
+    tags: ["Nature", "Short Film", "Experimental"],
+    mood: "Calm",
     platform: "MDN",
     creator: "MDN Web Docs",
     duration: "00:30",
+    durationSeconds: 30,
+    publishedYear: 2020,
+    likeCount: 6100,
     views: "CC0 video",
     age: "Open media",
     thumbnail: "thumbnails/15.webp?v=real1",
@@ -237,11 +317,11 @@ export const videos: VideoItem[] = Array.from({ length: 180 }, (_, index) => {
     ...seed,
     id: `video-${String(index + 1).padStart(3, "0")}`,
     title: cycle === 0 ? seed.title : `${seed.title} · ${editions[cycle - 1]}`,
+    likeCount: Math.max(50, seed.likeCount - cycle * 137),
   };
 });
 
 export const categories = [
-  "All",
   "Animation",
   "Comedy",
   "Fantasy",
@@ -249,4 +329,22 @@ export const categories = [
   "Adventure",
   "Experimental",
   "Nature",
+  "Family",
+  "Action",
+  "Drama",
+  "Short Film",
+  "Open Movie",
+  "Character Study",
+  "Visual Effects",
+  "3D",
+];
+
+export const moods = [
+  "Feel-good",
+  "Playful",
+  "Inspiring",
+  "Thoughtful",
+  "Epic",
+  "Dark",
+  "Calm",
 ];

@@ -18,6 +18,10 @@ type VisibilityCallback = (visible: boolean) => void;
 const callbacks = new WeakMap<Element, VisibilityCallback>();
 let observer: IntersectionObserver | null = null;
 let observerTargets = 0;
+const compactNumber = new Intl.NumberFormat("en", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
 
 function observeElement(
   element: Element,
@@ -204,7 +208,7 @@ export function VideoCard({
         rel="noopener noreferrer nofollow"
         tabIndex={tabIndex}
         data-video-index={index}
-        aria-label={`${video.title}. ${video.creator} on ${video.platform}. ${video.views}. Duration ${video.duration}.`}
+        aria-label={`${video.title}. ${video.creator} on ${video.platform}. ${compactNumber.format(video.likeCount)} likes. Duration ${video.duration}.`}
         onKeyDown={onKeyDown}
         onMouseEnter={() => {
           if (Date.now() - lastTouchAt.current > 750) addIntent("hover");
@@ -290,9 +294,9 @@ export function VideoCard({
             <p className="video-card__meta">
               <span>{video.platform}</span>
               <span aria-hidden="true">·</span>
-              <span>{video.views}</span>
+              <span>{compactNumber.format(video.likeCount)} likes</span>
               <span aria-hidden="true">·</span>
-              <span>{video.age}</span>
+              <span>{video.publishedYear}</span>
             </p>
           </div>
           <span className="video-card__more" aria-hidden="true">•••</span>
