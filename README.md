@@ -17,6 +17,7 @@ A high-performance video aggregation interface built with Next.js, React, and Ty
 - Browser-local username/password registration with optional recovery email
 - Per-user likes surfaced in the Stars tab
 - Dense, edge-to-edge cards with high-contrast overlaid metadata
+- Optional cookie-free Cloudflare Web Analytics with a private owner dashboard
 - Fully static production export
 
 ## Local development
@@ -37,3 +38,13 @@ The static site is written to `out/`.
 The demo catalog links to real open-film pages on Internet Archive and a CC0 MDN media example. Its thumbnails and short previews are extracted from the matching permitted source footage. Production ingestion should still retrieve provider metadata through official APIs and generate previews only for content the operator is authorized to process.
 
 Authentication in this static demo is device-local. Passwords are stored as salted PBKDF2 hashes; only a hash of the optional recovery email is retained alongside liked-video IDs in browser storage. A production, cross-device release should replace `lib/localAuth.ts` with a server-backed authentication and database adapter.
+
+## Private visitor analytics
+
+Create a free Cloudflare Web Analytics site and provide its public site token at build time:
+
+```bash
+CLOUDFLARE_WEB_ANALYTICS_TOKEN=your_site_token GITHUB_PAGES=true npm run build
+```
+
+The beacon loads lazily, does not use cookies, and exposes no analytics inside the public website. Reports remain available only through the authenticated Cloudflare dashboard. Never use a Cloudflare API token here.
