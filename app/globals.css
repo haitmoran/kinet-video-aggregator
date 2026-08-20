@@ -1003,6 +1003,11 @@ button {
   pointer-events: none;
 }
 
+.video-card[data-stars-visible="false"] .video-card__top-title {
+  top: 10px;
+  right: 54px;
+}
+
 .video-card__play {
   position: absolute;
   top: 50%;
@@ -1069,6 +1074,14 @@ button {
 
 .video-card__body.without-platform {
   grid-template-columns: minmax(0, 1fr);
+}
+
+.video-card__body.without-duration {
+  padding-right: 11px;
+}
+
+.video-card__body.without-creator .video-card__meta {
+  margin-top: 0;
 }
 
 .platform-mark {
@@ -2445,6 +2458,11 @@ html[data-tv="true"] .video-card__top-title {
   top: 66px;
   right: 12px;
   left: 12px;
+}
+
+html[data-tv="true"] .video-card[data-stars-visible="false"] .video-card__top-title {
+  top: 12px;
+  right: 66px;
 }
 
 html[data-tv="true"] .video-card__like {

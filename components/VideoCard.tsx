@@ -227,6 +227,7 @@ export function VideoCard({
       className="video-card"
       role="listitem"
       data-preview={previewReady ? "ready" : "idle"}
+      data-stars-visible={metadata.stars ? "true" : "false"}
       style={{ "--card-accent": video.accent } as CSSProperties}
       onFocusCapture={() => addIntent("focus")}
       onBlurCapture={(event) => {
@@ -323,7 +324,14 @@ export function VideoCard({
         </div>
 
         {showBody && (
-          <div className={`video-card__body ${metadata.source ? "" : "without-platform"}`}>
+          <div
+            className={[
+              "video-card__body",
+              metadata.source ? "" : "without-platform",
+              metadata.creator ? "" : "without-creator",
+              metadata.duration ? "" : "without-duration",
+            ].filter(Boolean).join(" ")}
+          >
             {metadata.source && <div className="platform-mark"><span>{platformMark}</span></div>}
             <div className="video-card__copy">
               {metadata.creator && <p className="video-card__creator">{video.creator}</p>}
