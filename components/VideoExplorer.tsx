@@ -823,7 +823,6 @@ export function VideoExplorer() {
           <a href="#catalog">About</a>
           <a href="#catalog">Sources</a>
           <a href="#catalog">Privacy</a>
-          <a href="analytics/">Analytics</a>
         </div>
       </footer>
 
