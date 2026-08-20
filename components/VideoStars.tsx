@@ -50,31 +50,43 @@ function positionPreviewTray(
     ?.getBoundingClientRect().bottom ?? 0;
   const safeTop = Math.max(gutter, topbarBottom + 10);
   const idealWidth = tvMode ? 520 : 380;
+  const minimumSideWidth = tvMode ? 340 : 280;
+  const cardOverlap = tvMode ? 62 : 48;
   const maximumHeight = Math.max(1, window.innerHeight - safeTop - gutter);
   const dialogHeight = Math.min(measuredHeight, maximumHeight);
 
   if (window.innerWidth >= 700) {
-    const width = Math.min(idealWidth, window.innerWidth - gutter * 2);
-    const rightEdgeLeft = window.innerWidth - width - gutter;
-    const panelOverlapsSelectedCard = rightEdgeLeft < cardBounds.right + gap;
-    const placement: PopoverPlacement = panelOverlapsSelectedCard
-      ? "upper-left"
-      : "upper-right";
-    return {
-      top: Math.max(
-        safeTop,
-        Math.min(
-          cardBounds.top - dialogHeight * 0.58,
-          window.innerHeight - dialogHeight - gutter,
-        ),
+    const top = Math.max(
+      safeTop,
+      Math.min(
+        cardBounds.top - dialogHeight * 0.58,
+        window.innerHeight - dialogHeight - gutter,
       ),
-      left: placement === "upper-right"
-        ? rightEdgeLeft
-        : gutter,
-      width,
-      maxHeight: maximumHeight,
-      placement,
-    };
+    );
+    const rightLeft = cardBounds.right - cardOverlap;
+    const availableRight = window.innerWidth - gutter - rightLeft;
+
+    if (availableRight >= minimumSideWidth) {
+      return {
+        top,
+        left: rightLeft,
+        width: Math.min(idealWidth, availableRight),
+        maxHeight: maximumHeight,
+        placement: "upper-right",
+      };
+    }
+
+    const availableLeft = cardBounds.left + cardOverlap - gutter;
+    if (availableLeft >= minimumSideWidth) {
+      const width = Math.min(idealWidth, availableLeft);
+      return {
+        top,
+        left: cardBounds.left - width + cardOverlap,
+        width,
+        maxHeight: maximumHeight,
+        placement: "upper-left",
+      };
+    }
   }
 
   const width = Math.min(idealWidth, window.innerWidth - gutter * 2);
