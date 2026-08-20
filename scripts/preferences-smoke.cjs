@@ -27,6 +27,7 @@ const preferencesModule = require("../.preferences-test/displayPreferences.js");
 const {
   DEFAULT_DISPLAY_PREFERENCES,
   DISPLAY_PREFERENCES_KEY,
+  applyDisplayPreferences,
   readDisplayPreferences,
   saveDisplayPreferences,
 } = preferencesModule;
@@ -36,7 +37,8 @@ assert.deepEqual(readDisplayPreferences(), DEFAULT_DISPLAY_PREFERENCES);
 const customized = {
   columns: 6,
   starColumns: 3,
-  textSize: "large",
+  videoTextSize: "large",
+  starTextSize: "small",
   metadata: {
     stars: false,
     title: false,
@@ -60,6 +62,8 @@ assert.deepEqual(readDisplayPreferences(), customized);
 assert.equal(document.documentElement.dataset.textSize, "large");
 assert.equal(properties.get("--preferred-video-columns"), "6");
 assert.equal(properties.get("--preferred-star-columns"), "3");
+applyDisplayPreferences(customized, "stars");
+assert.equal(document.documentElement.dataset.textSize, "small");
 
 window.localStorage.setItem(DISPLAY_PREFERENCES_KEY, "not-json");
 assert.deepEqual(readDisplayPreferences(), DEFAULT_DISPLAY_PREFERENCES);
@@ -71,8 +75,9 @@ window.localStorage.setItem(DISPLAY_PREFERENCES_KEY, JSON.stringify({
 }));
 const repaired = readDisplayPreferences();
 assert.equal(repaired.columns, 5);
-assert.equal(repaired.starColumns, 4);
-assert.equal(repaired.textSize, "default");
+assert.equal(repaired.starColumns, 5);
+assert.equal(repaired.videoTextSize, "default");
+assert.equal(repaired.starTextSize, "default");
 assert.equal(repaired.metadata.stars, true);
 assert.equal(repaired.metadata.title, true);
 assert.equal(repaired.metadata.creator, true);

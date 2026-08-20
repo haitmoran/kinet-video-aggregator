@@ -90,7 +90,7 @@ export function PreferencesPopover({ view, preferences, onChange }: PreferencesP
     if (view === "stars") {
       onChange({
         ...preferences,
-        textSize: DEFAULT_DISPLAY_PREFERENCES.textSize,
+        starTextSize: DEFAULT_DISPLAY_PREFERENCES.starTextSize,
         starColumns: DEFAULT_DISPLAY_PREFERENCES.starColumns,
         starMetadata: DEFAULT_DISPLAY_PREFERENCES.starMetadata,
       });
@@ -99,7 +99,7 @@ export function PreferencesPopover({ view, preferences, onChange }: PreferencesP
 
     onChange({
       ...preferences,
-      textSize: DEFAULT_DISPLAY_PREFERENCES.textSize,
+      videoTextSize: DEFAULT_DISPLAY_PREFERENCES.videoTextSize,
       columns: DEFAULT_DISPLAY_PREFERENCES.columns,
       metadata: DEFAULT_DISPLAY_PREFERENCES.metadata,
     });
@@ -141,7 +141,7 @@ export function PreferencesPopover({ view, preferences, onChange }: PreferencesP
             <legend>{view === "stars" ? "Stars per row" : "Videos per row"}</legend>
             <p>Applied on desktop and TV screens.</p>
             <div className={styles.segmented}>
-              {(view === "stars" ? [2, 3, 4, 5] as const : [3, 4, 5, 6] as const).map((columns) => (
+              {([3, 4, 5, 6] as const).map((columns) => (
                 <button
                   key={columns}
                   type="button"
@@ -166,9 +166,11 @@ export function PreferencesPopover({ view, preferences, onChange }: PreferencesP
                 <button
                   key={textSize}
                   type="button"
-                  className={preferences.textSize === textSize ? styles.selected : ""}
-                  aria-pressed={preferences.textSize === textSize}
-                  onClick={() => onChange({ ...preferences, textSize })}
+                  className={(view === "stars" ? preferences.starTextSize : preferences.videoTextSize) === textSize ? styles.selected : ""}
+                  aria-pressed={(view === "stars" ? preferences.starTextSize : preferences.videoTextSize) === textSize}
+                  onClick={() => onChange(view === "stars"
+                    ? { ...preferences, starTextSize: textSize }
+                    : { ...preferences, videoTextSize: textSize })}
                 >
                   {textSize === "default" ? "Standard" : `${textSize[0].toUpperCase()}${textSize.slice(1)}`}
                 </button>

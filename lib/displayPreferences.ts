@@ -21,18 +21,22 @@ export type StarCardPreferences = {
 
 export type DisplayPreferences = {
   columns: 3 | 4 | 5 | 6;
-  starColumns: 2 | 3 | 4 | 5;
-  textSize: TextSizePreference;
+  starColumns: 3 | 4 | 5 | 6;
+  videoTextSize: TextSizePreference;
+  starTextSize: TextSizePreference;
   metadata: VideoMetadataPreferences;
   starMetadata: StarCardPreferences;
 };
+
+export type DisplayPreferenceView = "videos" | "stars";
 
 export const DISPLAY_PREFERENCES_KEY = "kinet-display-preferences-v1";
 
 export const DEFAULT_DISPLAY_PREFERENCES: DisplayPreferences = {
   columns: 5,
-  starColumns: 4,
-  textSize: "default",
+  starColumns: 5,
+  videoTextSize: "default",
+  starTextSize: "default",
   metadata: {
     stars: true,
     title: true,
@@ -57,7 +61,7 @@ function isColumnCount(value: unknown): value is DisplayPreferences["columns"] {
 }
 
 function isStarColumnCount(value: unknown): value is DisplayPreferences["starColumns"] {
-  return value === 2 || value === 3 || value === 4 || value === 5;
+  return value === 3 || value === 4 || value === 5 || value === 6;
 }
 
 function isTextSize(value: unknown): value is TextSizePreference {
@@ -68,10 +72,11 @@ export function readDisplayPreferences(): DisplayPreferences {
   try {
     const parsed = JSON.parse(
       window.localStorage.getItem(DISPLAY_PREFERENCES_KEY) ?? "{}",
-    ) as Partial<DisplayPreferences>;
+    ) as Partial<DisplayPreferences> & { textSize?: unknown };
 
     const storedMetadata: Partial<VideoMetadataPreferences> = parsed.metadata ?? {};
     const storedStarMetadata: Partial<StarCardPreferences> = parsed.starMetadata ?? {};
+    const legacyTextSize = isTextSize(parsed.textSize) ? parsed.textSize : "default";
     return {
       columns: isColumnCount(parsed.columns)
         ? parsed.columns
@@ -79,9 +84,12 @@ export function readDisplayPreferences(): DisplayPreferences {
       starColumns: isStarColumnCount(parsed.starColumns)
         ? parsed.starColumns
         : DEFAULT_DISPLAY_PREFERENCES.starColumns,
-      textSize: isTextSize(parsed.textSize)
-        ? parsed.textSize
-        : DEFAULT_DISPLAY_PREFERENCES.textSize,
+      videoTextSize: isTextSize(parsed.videoTextSize)
+        ? parsed.videoTextSize
+        : legacyTextSize,
+      starTextSize: isTextSize(parsed.starTextSize)
+        ? parsed.starTextSize
+        : legacyTextSize,
       metadata: {
         stars: typeof storedMetadata.stars === "boolean" ? storedMetadata.stars : true,
         title: typeof storedMetadata.title === "boolean" ? storedMetadata.title : true,
@@ -105,8 +113,13 @@ export function readDisplayPreferences(): DisplayPreferences {
   }
 }
 
-export function applyDisplayPreferences(preferences: DisplayPreferences): void {
-  document.documentElement.dataset.textSize = preferences.textSize;
+export function applyDisplayPreferences(
+  preferences: DisplayPreferences,
+  view: DisplayPreferenceView = "videos",
+): void {
+  document.documentElement.dataset.textSize = view === "stars"
+    ? preferences.starTextSize
+    : preferences.videoTextSize;
   document.documentElement.style.setProperty(
     "--preferred-video-columns",
     String(preferences.columns),
@@ -117,11 +130,14 @@ export function applyDisplayPreferences(preferences: DisplayPreferences): void {
   );
 }
 
-export function saveDisplayPreferences(preferences: DisplayPreferences): void {
+export function saveDisplayPreferences(
+  preferences: DisplayPreferences,
+  view: DisplayPreferenceView = "videos",
+): void {
   try {
     window.localStorage.setItem(DISPLAY_PREFERENCES_KEY, JSON.stringify(preferences));
   } catch {
     // Preferences remain active for the current page if storage is unavailable.
   }
-  applyDisplayPreferences(preferences);
+  applyDisplayPreferences(preferences, view);
 }

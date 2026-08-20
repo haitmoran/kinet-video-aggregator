@@ -35,8 +35,8 @@ import { clearAnalyticsOwnerSession } from "@/lib/analyticsClient";
 
 type Theme = "light" | "dark";
 type MainTab = "Trending" | "Latest" | "Categories" | "Stars" | "Liked";
-type VideoRankMode = "Featured" | "Newest" | "Most liked" | "Shortest" | "Longest";
-type StarRankMode = "Featured" | "Name A–Z" | "Most appearances" | "Most liked" | "Newest work";
+type VideoSortMode = "Featured" | "Newest" | "Most liked" | "Shortest" | "Longest";
+type StarSortMode = "Featured" | "Name A–Z" | "Most appearances" | "Most liked" | "Newest work";
 type DurationFilter = "Any duration" | "Under 3 min" | "3–6 min" | "6–12 min" | "12+ min";
 type SourceFilter = "All sources" | "Internet Archive" | "MDN";
 type EraFilter = "Any era" | "Before 2010" | "2010s" | "2020s";
@@ -44,8 +44,8 @@ type StarAppearanceFilter = "Any appearances" | "40+ stories" | "Under 40 storie
 
 const PAGE_SIZE = 24;
 const mainTabs: MainTab[] = ["Trending", "Latest", "Categories", "Stars"];
-const videoRankModes: VideoRankMode[] = ["Featured", "Newest", "Most liked", "Shortest", "Longest"];
-const starRankModes: StarRankMode[] = ["Featured", "Name A–Z", "Most appearances", "Most liked", "Newest work"];
+const videoSortModes: VideoSortMode[] = ["Featured", "Newest", "Most liked", "Shortest", "Longest"];
+const starSortModes: StarSortMode[] = ["Featured", "Name A–Z", "Most appearances", "Most liked", "Newest work"];
 const durationFilters: DurationFilter[] = ["Any duration", "Under 3 min", "3–6 min", "6–12 min", "12+ min"];
 const sourceFilters: SourceFilter[] = ["All sources", "Internet Archive", "MDN"];
 const eraFilters: EraFilter[] = ["Any era", "Before 2010", "2010s", "2020s"];
@@ -146,8 +146,8 @@ export function VideoExplorer() {
   const [tvMode, setTvMode] = useState(false);
   const [activeTab, setActiveTab] = useState<MainTab>("Trending");
   const [query, setQuery] = useState("");
-  const [videoSort, setVideoSort] = useState<VideoRankMode>("Featured");
-  const [starSort, setStarSort] = useState<StarRankMode>("Featured");
+  const [videoSort, setVideoSort] = useState<VideoSortMode>("Featured");
+  const [starSort, setStarSort] = useState<StarSortMode>("Featured");
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [moodFilter, setMoodFilter] = useState("Any mood");
@@ -178,6 +178,7 @@ export function VideoExplorer() {
   }, []);
 
   useEffect(() => {
+    const pageParameters = new URLSearchParams(window.location.search);
     setTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
     const savedTvMode = window.localStorage.getItem("kinet-tv") === "true";
     setTvMode(savedTvMode);
@@ -187,20 +188,28 @@ export function VideoExplorer() {
     setCurrentUser(session);
     if (session) setLikedVideoIds(getLikedVideoIds(session.normalizedUsername));
 
-    if (new URLSearchParams(window.location.search).get("tab") === "stars") {
+    const startsOnStars = pageParameters.get("tab") === "stars";
+    if (startsOnStars) {
       setActiveTab("Stars");
       setStarSort("Featured");
     }
 
-    if (new URLSearchParams(window.location.search).get("managerLogin") === "1") {
+    if (pageParameters.get("managerLogin") === "1") {
       setAuthMode("login");
       setAuthOpen(true);
     }
 
     const savedPreferences = readDisplayPreferences();
     setDisplayPreferences(savedPreferences);
-    applyDisplayPreferences(savedPreferences);
+    applyDisplayPreferences(savedPreferences, startsOnStars ? "stars" : "videos");
   }, []);
+
+  useEffect(() => {
+    applyDisplayPreferences(
+      displayPreferences,
+      activeTab === "Stars" ? "stars" : "videos",
+    );
+  }, [activeTab, displayPreferences.starTextSize, displayPreferences.videoTextSize]);
 
   useEffect(() => {
     if (!accountMenuOpen) return;
@@ -464,7 +473,7 @@ export function VideoExplorer() {
 
   const updateDisplayPreferences = (preferences: DisplayPreferences) => {
     setDisplayPreferences(preferences);
-    saveDisplayPreferences(preferences);
+    saveDisplayPreferences(preferences, activeTab === "Stars" ? "stars" : "videos");
 
     if (displayPreferences.metadata.stars && !preferences.metadata.stars) {
       setFocusedAction("open");
@@ -483,9 +492,6 @@ export function VideoExplorer() {
     }
     if (tab === "Categories") {
       setFilterOpen(true);
-    }
-    if (tab === "Stars") {
-      setStarSort("Featured");
     }
     catalogRef.current?.scrollIntoView({ block: "start" });
   };
@@ -842,17 +848,17 @@ export function VideoExplorer() {
               </span>
               <label className="sort-control">
                 <span className="sort-control__label">
-                  {activeTab === "Stars" ? "Rank stars by" : "Rank by"}
+                  Sort by
                 </span>
                 <select
                   value={activeTab === "Stars" ? starSort : videoSort}
-                  aria-label={activeTab === "Stars" ? "Rank stars by" : "Rank videos by"}
+                  aria-label={activeTab === "Stars" ? "Sort stars by" : "Sort videos by"}
                   onChange={(event) => activeTab === "Stars"
-                    ? setStarSort(event.target.value as StarRankMode)
-                    : setVideoSort(event.target.value as VideoRankMode)}
+                    ? setStarSort(event.target.value as StarSortMode)
+                    : setVideoSort(event.target.value as VideoSortMode)}
                 >
-                  {(activeTab === "Stars" ? starRankModes : videoRankModes).map((rankMode) => (
-                    <option key={rankMode}>{rankMode}</option>
+                  {(activeTab === "Stars" ? starSortModes : videoSortModes).map((sortMode) => (
+                    <option key={sortMode}>{sortMode}</option>
                   ))}
                 </select>
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">

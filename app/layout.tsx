@@ -15,16 +15,19 @@ const themeBootScript = `
   }
   try {
     const display = JSON.parse(localStorage.getItem('kinet-display-preferences-v1') || '{}');
-    const textSize = ['small', 'default', 'large'].includes(display.textSize) ? display.textSize : 'default';
+    const legacyTextSize = ['small', 'default', 'large'].includes(display.textSize) ? display.textSize : 'default';
+    const videoTextSize = ['small', 'default', 'large'].includes(display.videoTextSize) ? display.videoTextSize : legacyTextSize;
+    const starTextSize = ['small', 'default', 'large'].includes(display.starTextSize) ? display.starTextSize : legacyTextSize;
+    const starsView = new URLSearchParams(location.search).get('tab') === 'stars' || location.pathname.includes('/stars/');
     const columns = [3, 4, 5, 6].includes(display.columns) ? display.columns : 5;
-    const starColumns = [2, 3, 4, 5].includes(display.starColumns) ? display.starColumns : 4;
-    document.documentElement.dataset.textSize = textSize;
+    const starColumns = [3, 4, 5, 6].includes(display.starColumns) ? display.starColumns : 5;
+    document.documentElement.dataset.textSize = starsView ? starTextSize : videoTextSize;
     document.documentElement.style.setProperty('--preferred-video-columns', String(columns));
     document.documentElement.style.setProperty('--preferred-star-columns', String(starColumns));
   } catch (_) {
     document.documentElement.dataset.textSize = 'default';
     document.documentElement.style.setProperty('--preferred-video-columns', '5');
-    document.documentElement.style.setProperty('--preferred-star-columns', '4');
+    document.documentElement.style.setProperty('--preferred-star-columns', '5');
   }
 `;
 
