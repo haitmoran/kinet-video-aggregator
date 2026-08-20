@@ -73,7 +73,7 @@
   top: var(--popover-top);
   left: var(--popover-left);
   width: min(380px, calc(100vw - 24px));
-  max-height: min(520px, calc(100vh - 24px));
+  max-height: min(var(--popover-max-height, 520px), calc(100vh - 24px));
   overflow-y: auto;
   border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
   border-radius: 18px;

@@ -26,6 +26,73 @@ type VideoStarsProps = {
   onStarKeyDown?: KeyboardEventHandler<HTMLButtonElement>;
 };
 
+type PopoverPlacement = "right" | "left" | "below" | "above";
+
+type PopoverPosition = {
+  top: number;
+  left: number;
+  maxHeight: number;
+  placement: PopoverPlacement;
+};
+
+function positionOutsideCard(
+  trigger: HTMLButtonElement,
+  measuredHeight = 290,
+): PopoverPosition {
+  const card = trigger.closest<HTMLElement>(".video-card");
+  const anchor = card?.getBoundingClientRect() ?? trigger.getBoundingClientRect();
+  const gutter = 12;
+  const gap = 12;
+  const dialogWidth = Math.min(380, window.innerWidth - gutter * 2);
+  const viewportHeight = window.innerHeight;
+  const availableRight = window.innerWidth - anchor.right - gap - gutter;
+  const availableLeft = anchor.left - gap - gutter;
+  const maximumHeight = Math.min(520, viewportHeight - gutter * 2);
+  const dialogHeight = Math.min(measuredHeight, maximumHeight);
+
+  if (availableRight >= dialogWidth) {
+    return {
+      top: Math.max(gutter, Math.min(anchor.top, viewportHeight - dialogHeight - gutter)),
+      left: anchor.right + gap,
+      maxHeight: maximumHeight,
+      placement: "right",
+    };
+  }
+
+  if (availableLeft >= dialogWidth) {
+    return {
+      top: Math.max(gutter, Math.min(anchor.top, viewportHeight - dialogHeight - gutter)),
+      left: anchor.left - dialogWidth - gap,
+      maxHeight: maximumHeight,
+      placement: "left",
+    };
+  }
+
+  const availableBelow = Math.max(0, viewportHeight - anchor.bottom - gap - gutter);
+  const availableAbove = Math.max(0, anchor.top - gap - gutter);
+  const left = Math.max(
+    gutter,
+    Math.min(anchor.left, window.innerWidth - dialogWidth - gutter),
+  );
+
+  if (availableBelow >= availableAbove) {
+    return {
+      top: anchor.bottom + gap,
+      left,
+      maxHeight: Math.max(1, availableBelow),
+      placement: "below",
+    };
+  }
+
+  const maxHeight = Math.max(1, availableAbove);
+  return {
+    top: Math.max(gutter, anchor.top - gap - Math.min(dialogHeight, maxHeight)),
+    left,
+    maxHeight,
+    placement: "above",
+  };
+}
+
 export function VideoStars({
   videoId,
   videoTitle,
@@ -43,30 +110,20 @@ export function VideoStars({
   const dialogRef = useRef<HTMLElement>(null);
   const activeIndexRef = useRef(0);
   const [activeStar, setActiveStar] = useState<StarProfile | null>(null);
-  const [popoverPosition, setPopoverPosition] = useState({ top: 12, left: 12 });
+  const [popoverPosition, setPopoverPosition] = useState<PopoverPosition>({
+    top: 12,
+    left: 12,
+    maxHeight: 520,
+    placement: "right",
+  });
 
   const updatePopoverPosition = useCallback(() => {
     const trigger = triggerRefs.current[activeIndexRef.current];
     if (!trigger) return;
 
-    const anchor = trigger.getBoundingClientRect();
-    const dialogWidth = Math.min(380, window.innerWidth - 24);
-    const dialogHeight = dialogRef.current?.offsetHeight ?? 290;
-    const gutter = 12;
-    let left = anchor.left;
-    let top = anchor.bottom + 10;
-
-    if (left + dialogWidth > window.innerWidth - gutter) {
-      left = window.innerWidth - dialogWidth - gutter;
-    }
-    if (top + dialogHeight > window.innerHeight - gutter) {
-      top = anchor.top - dialogHeight - 10;
-    }
-
-    setPopoverPosition({
-      left: Math.max(gutter, left),
-      top: Math.max(gutter, top),
-    });
+    setPopoverPosition(
+      positionOutsideCard(trigger, dialogRef.current?.offsetHeight ?? 290),
+    );
   }, []);
 
   const closeProfile = useCallback((restoreFocus = true) => {
@@ -147,8 +204,7 @@ export function VideoStars({
     event.preventDefault();
     event.stopPropagation();
     activeIndexRef.current = starIndex;
-    const anchor = event.currentTarget.getBoundingClientRect();
-    setPopoverPosition({ top: anchor.bottom + 10, left: Math.max(12, anchor.left) });
+    setPopoverPosition(positionOutsideCard(event.currentTarget));
     setActiveStar(star);
   };
 
@@ -187,12 +243,14 @@ export function VideoStars({
             ref={dialogRef}
             id={dialogId}
             className={styles.dialog}
+            data-placement={popoverPosition.placement}
             role="dialog"
             aria-labelledby={`${dialogId}-title`}
             aria-describedby={`${dialogId}-description`}
             style={{
               "--popover-top": `${popoverPosition.top}px`,
               "--popover-left": `${popoverPosition.left}px`,
+              "--popover-max-height": `${popoverPosition.maxHeight}px`,
             } as CSSProperties}
           >
             <button
