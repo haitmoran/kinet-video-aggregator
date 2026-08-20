@@ -61,38 +61,31 @@
   white-space: nowrap;
 }
 
-.popoverLayer {
-  position: fixed;
-  z-index: 120;
-  inset: 0;
-  pointer-events: none;
-}
-
 .dialog {
-  position: absolute;
-  top: var(--popover-top);
-  left: var(--popover-left);
-  width: min(380px, calc(100vw - 24px));
-  max-height: min(var(--popover-max-height, 520px), calc(100vh - 24px));
-  overflow-y: auto;
+  position: relative;
+  z-index: 6;
+  width: 100%;
+  max-height: var(--dialog-expanded-height, 240px);
+  overflow: hidden;
+  margin-top: 8px;
   border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
-  border-radius: 18px;
+  border-radius: 12px;
   background: var(--surface-raised);
   color: var(--text);
-  padding: 8px;
-  box-shadow: 0 20px 55px rgb(0 0 0 / 28%);
-  animation: dialogIn 180ms cubic-bezier(.2, .8, .2, 1) both;
-  pointer-events: auto;
+  padding: 6px;
+  box-shadow: 0 12px 30px rgb(17 24 39 / 16%);
+  animation: dialogIn 220ms cubic-bezier(.2, .8, .2, 1) both;
+  transform-origin: top center;
 }
 
 .close {
   position: absolute;
   z-index: 2;
-  top: 18px;
-  right: 18px;
+  top: 8px;
+  right: 8px;
   display: grid;
-  width: 38px;
-  height: 38px;
+  width: 30px;
+  height: 30px;
   place-items: center;
   border: 1px solid rgb(255 255 255 / 45%);
   border-radius: 50%;
@@ -113,12 +106,12 @@
 
 .profileLink {
   display: grid;
-  grid-template-columns: 112px minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 10px;
   align-items: center;
-  border-radius: 17px;
+  border-radius: 9px;
   color: inherit;
-  padding: 10px;
+  padding: 6px;
   text-decoration: none;
 }
 
@@ -126,13 +119,13 @@
   display: block;
   width: 100%;
   height: auto;
-  border-radius: 19px;
-  box-shadow: 0 12px 34px rgb(17 24 39 / 18%);
+  border-radius: 10px;
+  box-shadow: 0 7px 18px rgb(17 24 39 / 16%);
 }
 
 .dialogCopy {
   min-width: 0;
-  padding: 31px 12px 16px 0;
+  padding: 1px 30px 1px 0;
 }
 
 .prototype {
@@ -140,45 +133,51 @@
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent);
-  padding: 5px 8px;
-  font-size: 0.65rem;
+  padding: 3px 6px;
+  font-size: 0.5rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .dialogCopy h2 {
-  margin: 12px 0 3px;
+  overflow: hidden;
+  margin: 5px 0 2px;
   color: var(--text-strong);
-  font-size: clamp(1.6rem, 5vw, 2.2rem);
-  letter-spacing: -0.045em;
+  font-size: clamp(0.92rem, 1.05vw, 1.12rem);
+  letter-spacing: -0.025em;
   line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .role {
   margin: 0;
   color: var(--muted);
-  font-size: 0.86rem;
+  overflow: hidden;
+  font-size: 0.62rem;
   font-weight: 690;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bio {
   display: -webkit-box;
   overflow: hidden;
-  margin: 12px 0 15px;
+  margin: 5px 0 6px;
   color: var(--text);
-  font-size: 0.78rem;
-  line-height: 1.55;
+  font-size: 0.6rem;
+  line-height: 1.35;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
 }
 
 .cta {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   color: var(--text-strong);
-  font-size: 0.84rem;
+  font-size: 0.63rem;
   font-weight: 790;
 }
 
@@ -191,8 +190,18 @@
 }
 
 @keyframes dialogIn {
-  from { opacity: 0; transform: translateY(-6px) scale(.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    max-height: 0;
+    margin-top: 0;
+    opacity: 0;
+    transform: translateY(-7px) scale(.985);
+  }
+  to {
+    max-height: var(--dialog-expanded-height, 240px);
+    margin-top: 8px;
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @media (max-width: 560px) {
@@ -215,21 +224,17 @@
     height: 26px;
   }
 
-  .dialog {
-    width: min(360px, calc(100vw - 24px));
-  }
-
   .profileLink {
-    grid-template-columns: 92px minmax(0, 1fr);
-    gap: 14px;
+    grid-template-columns: 54px minmax(0, 1fr);
+    gap: 9px;
   }
 
   .dialogPortrait {
-    width: 92px;
+    width: 54px;
   }
 
   .dialogCopy {
-    padding: 28px 8px 12px 0;
+    padding-right: 28px;
   }
 }
 
@@ -255,17 +260,23 @@
 }
 
 :global(html[data-tv="true"]) .dialog {
-  width: min(520px, calc(100vw - 10vw));
+  --dialog-expanded-height: 340px;
+  padding: 10px;
+}
+
+:global(html[data-tv="true"]) .profileLink {
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 15px;
 }
 
 :global(html[data-tv="true"]) .dialogCopy h2 {
-  font-size: 2.8rem;
+  font-size: 1.5rem;
 }
 
 :global(html[data-tv="true"]) .role,
 :global(html[data-tv="true"]) .bio,
 :global(html[data-tv="true"]) .cta {
-  font-size: 1.12rem;
+  font-size: 0.92rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

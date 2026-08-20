@@ -7,11 +7,9 @@ import {
   useId,
   useRef,
   useState,
-  type CSSProperties,
   type KeyboardEventHandler,
   type MouseEvent,
 } from "react";
-import { createPortal } from "react-dom";
 import { getStarsForVideo, type StarProfile } from "@/data/stars";
 import { StarPortrait } from "@/components/StarPortrait";
 import styles from "./VideoStars.module.css";
@@ -25,73 +23,6 @@ type VideoStarsProps = {
   tabIndexes?: readonly [number, number];
   onStarKeyDown?: KeyboardEventHandler<HTMLButtonElement>;
 };
-
-type PopoverPlacement = "right" | "left" | "below" | "above";
-
-type PopoverPosition = {
-  top: number;
-  left: number;
-  maxHeight: number;
-  placement: PopoverPlacement;
-};
-
-function positionOutsideCard(
-  trigger: HTMLButtonElement,
-  measuredHeight = 290,
-): PopoverPosition {
-  const card = trigger.closest<HTMLElement>(".video-card");
-  const anchor = card?.getBoundingClientRect() ?? trigger.getBoundingClientRect();
-  const gutter = 12;
-  const gap = 12;
-  const dialogWidth = Math.min(380, window.innerWidth - gutter * 2);
-  const viewportHeight = window.innerHeight;
-  const availableRight = window.innerWidth - anchor.right - gap - gutter;
-  const availableLeft = anchor.left - gap - gutter;
-  const maximumHeight = Math.min(520, viewportHeight - gutter * 2);
-  const dialogHeight = Math.min(measuredHeight, maximumHeight);
-
-  if (availableRight >= dialogWidth) {
-    return {
-      top: Math.max(gutter, Math.min(anchor.top, viewportHeight - dialogHeight - gutter)),
-      left: anchor.right + gap,
-      maxHeight: maximumHeight,
-      placement: "right",
-    };
-  }
-
-  if (availableLeft >= dialogWidth) {
-    return {
-      top: Math.max(gutter, Math.min(anchor.top, viewportHeight - dialogHeight - gutter)),
-      left: anchor.left - dialogWidth - gap,
-      maxHeight: maximumHeight,
-      placement: "left",
-    };
-  }
-
-  const availableBelow = Math.max(0, viewportHeight - anchor.bottom - gap - gutter);
-  const availableAbove = Math.max(0, anchor.top - gap - gutter);
-  const left = Math.max(
-    gutter,
-    Math.min(anchor.left, window.innerWidth - dialogWidth - gutter),
-  );
-
-  if (availableBelow >= availableAbove) {
-    return {
-      top: anchor.bottom + gap,
-      left,
-      maxHeight: Math.max(1, availableBelow),
-      placement: "below",
-    };
-  }
-
-  const maxHeight = Math.max(1, availableAbove);
-  return {
-    top: Math.max(gutter, anchor.top - gap - Math.min(dialogHeight, maxHeight)),
-    left,
-    maxHeight,
-    placement: "above",
-  };
-}
 
 export function VideoStars({
   videoId,
@@ -110,21 +41,6 @@ export function VideoStars({
   const dialogRef = useRef<HTMLElement>(null);
   const activeIndexRef = useRef(0);
   const [activeStar, setActiveStar] = useState<StarProfile | null>(null);
-  const [popoverPosition, setPopoverPosition] = useState<PopoverPosition>({
-    top: 12,
-    left: 12,
-    maxHeight: 520,
-    placement: "right",
-  });
-
-  const updatePopoverPosition = useCallback(() => {
-    const trigger = triggerRefs.current[activeIndexRef.current];
-    if (!trigger) return;
-
-    setPopoverPosition(
-      positionOutsideCard(trigger, dialogRef.current?.offsetHeight ?? 290),
-    );
-  }, []);
 
   const closeProfile = useCallback((restoreFocus = true) => {
     setActiveStar(null);
@@ -136,7 +52,6 @@ export function VideoStars({
   useEffect(() => {
     if (!activeStar) return;
 
-    updatePopoverPosition();
     window.requestAnimationFrame(() => profileLinkRef.current?.focus());
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -190,21 +105,16 @@ export function VideoStars({
 
     document.addEventListener("keydown", handleKeyDown);
     document.addEventListener("pointerdown", handleOutsidePointer);
-    window.addEventListener("resize", updatePopoverPosition);
-    window.addEventListener("scroll", updatePopoverPosition, true);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("pointerdown", handleOutsidePointer);
-      window.removeEventListener("resize", updatePopoverPosition);
-      window.removeEventListener("scroll", updatePopoverPosition, true);
     };
-  }, [activeStar, closeProfile, updatePopoverPosition]);
+  }, [activeStar, closeProfile]);
 
   const openProfile = (star: StarProfile, starIndex: number, event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
     activeIndexRef.current = starIndex;
-    setPopoverPosition(positionOutsideCard(event.currentTarget));
     setActiveStar(star);
   };
 
@@ -237,69 +147,60 @@ export function VideoStars({
         ))}
       </div>
 
-      {activeStar && typeof document !== "undefined" && createPortal(
-        <div className={styles.popoverLayer}>
-          <section
-            ref={dialogRef}
-            id={dialogId}
-            className={styles.dialog}
-            data-placement={popoverPosition.placement}
-            role="dialog"
-            aria-labelledby={`${dialogId}-title`}
-            aria-describedby={`${dialogId}-description`}
-            style={{
-              "--popover-top": `${popoverPosition.top}px`,
-              "--popover-left": `${popoverPosition.left}px`,
-              "--popover-max-height": `${popoverPosition.maxHeight}px`,
-            } as CSSProperties}
+      {activeStar && (
+        <section
+          ref={dialogRef}
+          id={dialogId}
+          className={styles.dialog}
+          role="dialog"
+          aria-labelledby={`${dialogId}-title`}
+          aria-describedby={`${dialogId}-description`}
+        >
+          <button
+            ref={closeButtonRef}
+            className={styles.close}
+            type="button"
+            aria-label="Close star preview"
+            onClick={() => closeProfile()}
+            onKeyDown={(event) => {
+              if (["OK", "Select", "Accept"].includes(event.key)) {
+                event.preventDefault();
+                event.currentTarget.click();
+              }
+            }}
           >
-            <button
-              ref={closeButtonRef}
-              className={styles.close}
-              type="button"
-              aria-label="Close star preview"
-              onClick={() => closeProfile()}
-              onKeyDown={(event) => {
-                if (["OK", "Select", "Accept"].includes(event.key)) {
-                  event.preventDefault();
-                  event.currentTarget.click();
-                }
-              }}
-            >
-              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                <path d="m6.5 6.5 11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
-            </button>
+            <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+              <path d="m6.5 6.5 11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+          </button>
 
-            <Link
-              ref={profileLinkRef}
-              className={styles.profileLink}
-              href={`/stars/${activeStar.slug}/`}
-              onClick={() => closeProfile(false)}
-              onKeyDown={(event) => {
-                if (["OK", "Select", "Accept"].includes(event.key)) {
-                  event.preventDefault();
-                  event.currentTarget.click();
-                }
-              }}
-            >
-              <StarPortrait star={activeStar} className={styles.dialogPortrait} decorative={false} />
-              <div className={styles.dialogCopy}>
-                <span className={styles.prototype}>Prototype profile</span>
-                <h2 id={`${dialogId}-title`}>{activeStar.name}</h2>
-                <p className={styles.role}>{activeStar.role}</p>
-                <p id={`${dialogId}-description`} className={styles.bio}>{activeStar.shortBio}</p>
-                <span className={styles.cta}>
-                  View full profile
-                  <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
-                    <path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-              </div>
-            </Link>
-          </section>
-        </div>,
-        document.body,
+          <Link
+            ref={profileLinkRef}
+            className={styles.profileLink}
+            href={`/stars/${activeStar.slug}/`}
+            onClick={() => closeProfile(false)}
+            onKeyDown={(event) => {
+              if (["OK", "Select", "Accept"].includes(event.key)) {
+                event.preventDefault();
+                event.currentTarget.click();
+              }
+            }}
+          >
+            <StarPortrait star={activeStar} className={styles.dialogPortrait} decorative={false} />
+            <div className={styles.dialogCopy}>
+              <span className={styles.prototype}>Featured star</span>
+              <h2 id={`${dialogId}-title`}>{activeStar.name}</h2>
+              <p className={styles.role}>{activeStar.role}</p>
+              <p id={`${dialogId}-description`} className={styles.bio}>{activeStar.shortBio}</p>
+              <span className={styles.cta}>
+                View profile
+                <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+                  <path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+            </div>
+          </Link>
+        </section>
       )}
     </>
   );
