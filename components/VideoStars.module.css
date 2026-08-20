@@ -63,7 +63,7 @@
 
 .popoverLayer {
   position: fixed;
-  z-index: 120;
+  z-index: 220;
   inset: 0;
   pointer-events: none;
 }

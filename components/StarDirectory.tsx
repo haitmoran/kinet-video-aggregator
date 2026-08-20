@@ -1,13 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+} from "react";
 import { createPortal } from "react-dom";
 import { StarPortrait } from "@/components/StarPortrait";
 import { VideoCard } from "@/components/VideoCard";
 import { getStarSlugsForVideo, type StarProfile } from "@/data/stars";
 import { videos } from "@/data/videos";
 import type {
+  DisplayPreferences,
   StarCardPreferences,
+  TextSizePreference,
   VideoMetadataPreferences,
 } from "@/lib/displayPreferences";
 import styles from "./StarDirectory.module.css";
@@ -23,16 +32,6 @@ const compactNumber = new Intl.NumberFormat("en", {
   notation: "compact",
   maximumFractionDigits: 1,
 });
-
-const FULL_VIDEO_METADATA: VideoMetadataPreferences = {
-  stars: true,
-  title: true,
-  creator: true,
-  source: true,
-  likes: true,
-  year: true,
-  duration: true,
-};
 
 const remoteKeys: Record<number, string> = {
   13: "Enter",
@@ -53,10 +52,13 @@ type StarDirectoryProps = {
   tvMode: boolean;
   columns: number;
   details: StarCardPreferences;
+  videoColumns: DisplayPreferences["columns"];
+  videoTextSize: TextSizePreference;
+  videoMetadata: VideoMetadataPreferences;
   lovedStarSlugs: ReadonlySet<string>;
   onToggleStarLove: (starSlug: string) => boolean;
   likedVideoIds: ReadonlySet<string>;
-  onToggleVideoLike: (videoId: string) => void;
+  onToggleVideoLike: (videoId: string) => boolean;
   onExitDown?: () => void;
   initialStarSlug?: string | null;
 };
@@ -66,6 +68,9 @@ export function StarDirectory({
   tvMode,
   columns,
   details,
+  videoColumns,
+  videoTextSize,
+  videoMetadata,
   lovedStarSlugs,
   onToggleStarLove,
   likedVideoIds,
@@ -108,7 +113,9 @@ export function StarDirectory({
   useEffect(() => {
     if (!activeEntry) return;
     const previousOverflow = document.body.style.overflow;
+    const previousTextSize = document.documentElement.dataset.textSize;
     document.body.style.overflow = "hidden";
+    document.documentElement.dataset.textSize = videoTextSize;
     window.requestAnimationFrame(() => drawerCloseRef.current?.focus());
 
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
@@ -136,14 +143,18 @@ export function StarDirectory({
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
+      if (previousTextSize) document.documentElement.dataset.textSize = previousTextSize;
+      else delete document.documentElement.dataset.textSize;
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [activeEntry, closeDrawer]);
+  }, [activeEntry, closeDrawer, videoTextSize]);
 
   const relatedVideos = activeEntry
     ? videos.filter((video) => getStarSlugsForVideo(video.id).includes(activeEntry.profile.slug))
     : [];
-  const displayedVideos = showAllVideos ? relatedVideos : relatedVideos.slice(0, 6);
+  const displayedVideos = showAllVideos
+    ? relatedVideos
+    : relatedVideos.slice(0, videoColumns * 2);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     const key = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Enter", "OK", "Select", "Accept"].includes(event.key)
@@ -240,12 +251,18 @@ export function StarDirectory({
             onPointerDown={(event) => event.stopPropagation()}
           >
             <button
-              className={`${styles.drawerLove} ${lovedStarSlugs.has(activeEntry.profile.slug) ? styles.loved : ""}`}
+              className={`video-card__like ${styles.drawerLove} ${lovedStarSlugs.has(activeEntry.profile.slug) ? "is-liked" : ""}`}
               type="button"
               aria-pressed={lovedStarSlugs.has(activeEntry.profile.slug)}
               aria-label={lovedStarSlugs.has(activeEntry.profile.slug)
                 ? `Remove ${activeEntry.profile.name} from loved stars`
                 : `Love ${activeEntry.profile.name}`}
+              data-focus-label={lovedStarSlugs.has(activeEntry.profile.slug)
+                ? "Remove love"
+                : "Love star"}
+              title={lovedStarSlugs.has(activeEntry.profile.slug)
+                ? "Remove from loved stars"
+                : "Love this star"}
               onClick={() => {
                 const changed = onToggleStarLove(activeEntry.profile.slug);
                 if (!changed) closeDrawer(false);
@@ -254,7 +271,6 @@ export function StarDirectory({
               <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
                 <path d="M12 20.3 4.2 12.8A4.8 4.8 0 0 1 11 6l1 1 1-1a4.8 4.8 0 0 1 6.8 6.8L12 20.3Z" />
               </svg>
-              <span>{lovedStarSlugs.has(activeEntry.profile.slug) ? "Loved" : "Love"}</span>
             </button>
             <button
               ref={drawerCloseRef}
@@ -300,18 +316,29 @@ export function StarDirectory({
                 <h3>Videos featuring {activeEntry.profile.firstName}</h3>
                 <span>{activeEntry.appearances}</span>
               </div>
-              <div className={styles.drawerVideoGrid} role="list">
+              <div
+                className={styles.drawerVideoGrid}
+                role="list"
+                data-video-text-size={videoTextSize}
+                style={{ "--drawer-video-columns": videoColumns } as CSSProperties}
+              >
                 {displayedVideos.map((video, index) => (
                   <VideoCard
                     key={video.id}
                     video={video}
                     index={index}
                     liked={likedVideoIds.has(video.id)}
-                    onToggleLike={() => onToggleVideoLike(video.id)}
+                    onToggleLike={() => {
+                      if (!onToggleVideoLike(video.id)) closeDrawer(false);
+                    }}
                     lovedStarSlugs={lovedStarSlugs}
-                    onToggleStarLove={onToggleStarLove}
-                    metadata={FULL_VIDEO_METADATA}
-                    priority={index < 4}
+                    onToggleStarLove={(starSlug) => {
+                      const changed = onToggleStarLove(starSlug);
+                      if (!changed) closeDrawer(false);
+                      return changed;
+                    }}
+                    metadata={videoMetadata}
+                    priority={index < videoColumns}
                   />
                 ))}
               </div>

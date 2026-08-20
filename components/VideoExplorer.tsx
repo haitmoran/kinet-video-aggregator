@@ -569,10 +569,10 @@ export function VideoExplorer() {
     }
   };
 
-  const toggleLike = (videoId: string) => {
+  const toggleLike = (videoId: string): boolean => {
     if (!currentUser) {
       openAuth("login", videoId);
-      return;
+      return false;
     }
 
     const nextLikes = new Set(likedVideoIds);
@@ -580,6 +580,7 @@ export function VideoExplorer() {
     else nextLikes.add(videoId);
     saveLikedVideoIds(currentUser.normalizedUsername, nextLikes);
     setLikedVideoIds(nextLikes);
+    return true;
   };
 
   const toggleStarLove = (starSlug: string): boolean => {
@@ -962,6 +963,9 @@ export function VideoExplorer() {
                 tvMode={tvMode}
                 columns={displayPreferences.starColumns}
                 details={displayPreferences.starMetadata}
+                videoColumns={displayPreferences.columns}
+                videoTextSize={displayPreferences.videoTextSize}
+                videoMetadata={displayPreferences.metadata}
                 lovedStarSlugs={lovedStarSlugs}
                 onToggleStarLove={toggleStarLove}
                 likedVideoIds={likedVideoIds}
@@ -1022,6 +1026,9 @@ export function VideoExplorer() {
                         tvMode={tvMode}
                         columns={displayPreferences.starColumns}
                         details={displayPreferences.starMetadata}
+                        videoColumns={displayPreferences.columns}
+                        videoTextSize={displayPreferences.videoTextSize}
+                        videoMetadata={displayPreferences.metadata}
                         lovedStarSlugs={lovedStarSlugs}
                         onToggleStarLove={toggleStarLove}
                         likedVideoIds={likedVideoIds}

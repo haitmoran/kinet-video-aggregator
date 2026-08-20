@@ -157,8 +157,9 @@
   position: absolute;
   top: 12px;
   left: 12px;
+  right: clamp(28px, 4vw, 64px);
   bottom: 12px;
-  width: min(66.666vw, calc(100vw - 24px));
+  width: auto;
   overflow-y: auto;
   border: 1px solid color-mix(in srgb, var(--line) 68%, rgb(255 255 255 / 45%));
   border-radius: 22px;
@@ -187,54 +188,17 @@
   cursor: pointer;
 }
 
-.drawerLove {
+.drawer .drawerLove {
   position: absolute;
   z-index: 3;
   top: 26px;
   right: 78px;
-  display: inline-flex;
-  height: 40px;
-  align-items: center;
-  gap: 7px;
-  border: 1px solid rgb(255 255 255 / 42%);
-  border-radius: 999px;
-  background: rgb(17 24 39 / 66%);
-  color: #fff;
-  padding: 0 13px;
-  font: inherit;
-  font-size: 0.7rem;
-  font-weight: 780;
-  cursor: pointer;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
-.drawerLove svg path {
-  fill: transparent;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linejoin: round;
-}
-
-.drawerLove.loved {
-  border-color: rgb(255 255 255 / 72%);
-  background: var(--accent);
-}
-
-.drawerLove.loved svg path {
-  fill: currentColor;
+  width: 38px;
+  height: 38px;
 }
 
 .drawerClose:hover {
   background: #111827;
-}
-
-.drawerLove:hover {
-  background: #111827;
-}
-
-.drawerLove.loved:hover {
-  background: color-mix(in srgb, var(--accent) 84%, #111827);
 }
 
 .drawerClose:focus-visible,
@@ -468,12 +432,20 @@
   .grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .drawerVideoGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (min-width: 48rem) {
   .grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
+  }
+
+  .drawerVideoGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -499,7 +471,7 @@
   }
 
   .drawerVideoGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--drawer-video-columns, 5), minmax(0, 1fr));
   }
 }
 
@@ -533,8 +505,9 @@
 :global(html[data-tv="true"]) .drawer {
   top: 5vh;
   left: 5vw;
+  right: 7vw;
   bottom: 5vh;
-  width: min(66.666vw, calc(100vw - 10vw));
+  width: auto;
   padding: 22px;
 }
 
@@ -557,8 +530,9 @@
   .drawer {
     top: 8px;
     left: 8px;
+    right: 8px;
     bottom: 8px;
-    width: calc(100vw - 16px);
+    width: auto;
     border-radius: 18px;
   }
 }
