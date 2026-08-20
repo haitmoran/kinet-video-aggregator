@@ -1,3 +1,3 @@
 :HL["/kinet-video-aggregator/_next/static/chunks/24fr1iz44z72d.css","style"]
 :HL["/kinet-video-aggregator/_next/static/chunks/0b2bdcq0lhj0y.css","style"]
-0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"stars","param":null,"prefetchHints":4192,"slots":{"children":{"name":"slug","param":{"type":"d","key":"elio-park","siblings":[]},"prefetchHints":4192,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}}}}}},"staleTime":300,"buildId":"_c96xu3Cd3OhYTOq1cYYD"}
+0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"stars","param":null,"prefetchHints":4192,"slots":{"children":{"name":"slug","param":{"type":"d","key":"elio-park","siblings":[]},"prefetchHints":4192,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}}}}}},"staleTime":300,"buildId":"L7REZT1fG99j8P8LoWHAH"}
